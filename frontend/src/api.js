@@ -1,7 +1,7 @@
 // src/api.js
 // Central place for all ride service API calls
 
-const BASE_URL = "http://localhost:8000";
+const BASE_URL = "http://localhost:3000";
 
 export async function getAllRides() {
   const res = await fetch(`${BASE_URL}/rides/`);
