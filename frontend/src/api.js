@@ -1,38 +1,47 @@
 // src/api.js
 // Central place for all ride service API calls
 
-const BASE_URL = "http://localhost:3000";
+const BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000";
+
+async function fetchJson(url, options) {
+  const res = await fetch(url, options);
+  const contentType = res.headers.get("content-type") || "";
+
+  if (!res.ok) {
+    throw new Error(`Request failed (${res.status}) for ${url}`);
+  }
+
+  if (!contentType.includes("application/json")) {
+    throw new Error(
+      `Expected JSON from ${url}, got '${contentType || "unknown content type"}'`
+    );
+  }
+
+  return res.json();
+}
 
 export async function getAllRides() {
-  const res = await fetch(`${BASE_URL}/rides/`);
-  if (!res.ok) throw new Error("Failed to fetch rides");
-  return res.json();
+  return fetchJson(`${BASE_URL}/rides/`);
 }
 
 export async function getRideById(rideId) {
-  const res = await fetch(`${BASE_URL}/rides/${rideId}`);
-  if (!res.ok) throw new Error(`Ride ${rideId} not found`);
-  return res.json();
+  return fetchJson(`${BASE_URL}/rides/${rideId}`);
 }
 
 export async function updateRideStatus(rideId, status) {
-  const res = await fetch(`${BASE_URL}/rides/${rideId}/status`, {
+  return fetchJson(`${BASE_URL}/rides/${rideId}/status`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ status }),
   });
-  if (!res.ok) throw new Error("Failed to update status");
-  return res.json();
 }
 
 export async function createRide(rideData) {
-  const res = await fetch(`${BASE_URL}/rides/`, {
+  return fetchJson(`${BASE_URL}/rides/`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(rideData),
   });
-  if (!res.ok) throw new Error("Failed to create ride");
-  return res.json();
 }
 
 export async function deleteRide(rideId) {
@@ -41,17 +50,9 @@ export async function deleteRide(rideId) {
 }
 
 export async function getAdminDashboard() {
-  const res = await fetch(`${BASE_URL}/admin/dashboard`);
-  if (!res.ok) throw new Error("Failed to fetch dashboard");
-  return res.json();
+  return fetchJson(`${BASE_URL}/admin/dashboard`);
 }
 
 export async function getPredictedWaitTime(rideId) {
-  const res = await fetch(
-    `${BASE_URL}/api/wait-time/predict?rideId=${rideId}`
-  );
-
-  if (!res.ok) throw new Error("Failed");
-
-  return res.json();
+  return fetchJson(`${BASE_URL}/api/wait-time/predict?rideId=${rideId}`);
 }

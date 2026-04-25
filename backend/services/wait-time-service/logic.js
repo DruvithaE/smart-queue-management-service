@@ -6,7 +6,8 @@ const PeakHourStrategy = require("./strategies/PeakHourStrategy");
 const LoadBasedStrategy = require("./strategies/LoadBasedStrategy");
 const StrategyContext = require("./strategies/StrategyContext");
 
-const RIDE_SERVICE_URL = "http://localhost:3000/rides";
+const BACKEND_PORT = process.env.PORT || 5000;
+const RIDE_SERVICE_URL = process.env.RIDE_SERVICE_URL || `http://localhost:${BACKEND_PORT}/rides`;
 
 class WaitTimeLogic {
     static async calculateWaitTime(rideId, previousWait = null) {
