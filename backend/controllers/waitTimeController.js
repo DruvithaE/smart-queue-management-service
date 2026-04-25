@@ -3,38 +3,61 @@ const WaitTimeLogic = require("../services/wait-time-service/logic");
 
 const router = express.Router();
 
-router.get("/predict", (req, res) => {
-    const { rideId, queueLength, capacity, duration, previousWait } = req.query;
+/**
+ * GET /api/wait-time/predict?rideId=1
+ *
+ * Controller responsibility:
+ * - validate request
+ * - call logic layer
+ * - return response
+ */
+router.get("/predict", async (req, res) => {
+    try {
+        const { rideId, previousWait } = req.query;
 
-    // Validate input
-    if (!rideId || !queueLength || !capacity || !duration) {
-        return res.status(400).json({
-            error: "Missing required query parameters: rideId, queueLength, capacity, duration",
+        // Validate required input
+        if (!rideId) {
+            return res.status(400).json({
+                error: "rideId is required",
+            });
+        }
+
+        // Validate previousWait if provided
+        if (
+            previousWait &&
+            (isNaN(previousWait) || parseInt(previousWait, 10) < 0)
+        ) {
+            return res.status(400).json({
+                error: "previousWait must be a valid non-negative number",
+            });
+        }
+
+        // Call service layer
+        const result = await WaitTimeLogic.calculateWaitTime(
+            rideId,
+            previousWait ? parseInt(previousWait, 10) : null
+        );
+
+        // Handle logic errors
+        if (result.error) {
+            return res.status(500).json({
+                error: result.error,
+            });
+        }
+
+        // Success response
+        return res.json({
+            rideId,
+            ...result,
+        });
+
+    } catch (error) {
+        console.error("Controller Error:", error.message);
+
+        return res.status(500).json({
+            error: "Internal server error",
         });
     }
-
-    if (capacity <= 0) {
-        return res.status(400).json({
-            error: "Capacity must be greater than 0",
-        });
-    }
-
-    // Parse input values
-    const data = {
-        queueLength: parseInt(queueLength, 10),
-        capacity: parseInt(capacity, 10),
-        duration: parseInt(duration, 10),
-        previousWait: previousWait ? parseInt(previousWait, 10) : null,
-    };
-
-    // Calculate wait time using logic
-    const result = WaitTimeLogic.calculateWaitTime(data);
-
-    // Return response
-    res.json({
-        rideId,
-        ...result,
-    });
 });
 
 module.exports = router;
