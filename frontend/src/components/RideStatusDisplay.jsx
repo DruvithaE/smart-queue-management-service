@@ -2,7 +2,7 @@
 // User-facing: shows all rides with live status, capacity, and wait info
 
 import { useEffect, useState } from "react";
-import { getAllRides } from "../api";
+import { getAllRides, getPredictedWaitTime } from "../api";
 
 const STATUS_CONFIG = {
   OPEN:        { label: "Open",        bg: "#dcfce7", color: "#15803d", dot: "#22c55e" },
@@ -29,51 +29,129 @@ function StatusBadge({ status }) {
     </span>
   );
 }
-
 function RideCard({ ride }) {
+  const [showWait, setShowWait] = useState(false);
+  const [waitData, setWaitData] = useState(null);
+  const [loadingWait, setLoadingWait] = useState(false);
+  const [waitError, setWaitError] = useState("");
+
+  const handleViewWait = async () => {
+    if (showWait) {
+      setShowWait(false);
+      return;
+    }
+
+    try {
+      setLoadingWait(true);
+      const data = await getPredictedWaitTime(ride.id);
+      setWaitData(data);
+      setWaitError("");
+      setShowWait(true);
+    } catch (err) {
+      setWaitError("Failed to load wait time");
+      setShowWait(true);
+    } finally {
+      setLoadingWait(false);
+    }
+  };
+
   return (
     <div style={{
-      background: "#fff", borderRadius: 14, padding: "20px 24px",
-      boxShadow: "0 1px 3px rgba(0,0,0,0.1)", border: "1px solid #f0f0f0",
-      display: "flex", flexDirection: "column", gap: 12,
+      background: "#fff",
+      borderRadius: 14,
+      padding: "20px 24px",
+      boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+      border: "1px solid #f0f0f0",
+      display: "flex",
+      flexDirection: "column",
+      gap: 12,
       opacity: ride.status === "CLOSED" ? 0.65 : 1,
-      transition: "transform 0.2s",
-    }}
-    onMouseEnter={e => e.currentTarget.style.transform = "translateY(-2px)"}
-    onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
-    >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+    }}>
+
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 17, color: "#111", marginBottom: 2 }}>
-            {ride.name}
-          </div>
-          {ride.description && (
-            <div style={{ fontSize: 13, color: "#888" }}>{ride.description}</div>
-          )}
+          <div style={{ fontWeight: 700, fontSize: 17 }}>{ride.name}</div>
+          <div style={{ fontSize: 13, color: "#888" }}>{ride.description}</div>
         </div>
+
         <StatusBadge status={ride.status} />
       </div>
 
-      <div style={{ display: "flex", gap: 24, marginTop: 4 }}>
+      <div style={{ display: "flex", gap: 24 }}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#4f46e5" }}>{ride.capacity}</div>
-          <div style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Capacity / Cycle
+          <div style={{ fontSize: 22, fontWeight: 800, color: "#4f46e5" }}>
+            {ride.capacity}
           </div>
+          <div style={{ fontSize: 11, color: "#888" }}>CAPACITY</div>
         </div>
+
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#0891b2" }}>{ride.duration} min</div>
-          <div style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Cycle Duration
+          <div style={{ fontSize: 22, fontWeight: 800, color: "#0891b2" }}>
+            {ride.duration} min
           </div>
+          <div style={{ fontSize: 11, color: "#888" }}>DURATION</div>
         </div>
+
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 22, fontWeight: 800, color: "#059669" }}>#{ride.id}</div>
-          <div style={{ fontSize: 11, color: "#888", textTransform: "uppercase", letterSpacing: 0.5 }}>
-            Ride ID
+          <div style={{ fontSize: 22, fontWeight: 800, color: "#059669" }}>
+            #{ride.id}
           </div>
+          <div style={{ fontSize: 11, color: "#888" }}>RIDE ID</div>
         </div>
       </div>
+
+      {ride.status === "OPEN" ? (
+        <button
+          onClick={handleViewWait}
+          style={{
+            marginTop: 8,
+            padding: "8px 14px",
+            border: "none",
+            borderRadius: 8,
+            background: "#4f46e5",
+            color: "#fff",
+            cursor: "pointer",
+            fontWeight: 600
+          }}
+        >
+          {showWait ? "Hide Wait Time" : "View Wait Time"}
+        </button>
+      ) : (
+        <button
+          disabled
+          style={{
+            marginTop: 8,
+            padding: "8px 14px",
+            border: "none",
+            borderRadius: 8,
+            background: "#e5e7eb",
+            color: "#888",
+            fontWeight: 600,
+            cursor: "not-allowed"
+          }}
+        >
+          Unavailable
+        </button>
+      )}
+
+      {loadingWait && <p>Loading wait time...</p>}
+
+      {showWait && waitData && (
+        <div style={{
+          background: "#f8fafc",
+          padding: 12,
+          borderRadius: 10,
+          marginTop: 8
+        }}>
+          <div><strong>Estimated Wait:</strong> {waitData.estimatedWaitTime} mins</div>
+          <div><strong>Strategy:</strong> {waitData.strategyUsed}</div>
+        </div>
+      )}
+
+      {showWait && waitError && (
+        <div style={{ color: "red", marginTop: 8 }}>{waitError}</div>
+      )}
+
     </div>
   );
 }
@@ -155,7 +233,7 @@ export default function RideStatusDisplay() {
       )}
 
       {!loading && !error && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))", gap: 16, alignItems: "start" }}>
           {filtered.length === 0
             ? <div style={{ color: "#888", gridColumn: "1/-1", textAlign: "center", padding: 32 }}>
                 No rides match this filter.

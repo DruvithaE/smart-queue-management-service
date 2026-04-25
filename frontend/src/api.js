@@ -45,3 +45,13 @@ export async function getAdminDashboard() {
   if (!res.ok) throw new Error("Failed to fetch dashboard");
   return res.json();
 }
+
+export async function getPredictedWaitTime(rideId) {
+  const res = await fetch(
+    `${BASE_URL}/api/wait-time/predict?rideId=${rideId}`
+  );
+
+  if (!res.ok) throw new Error("Failed");
+
+  return res.json();
+}
