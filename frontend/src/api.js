@@ -56,3 +56,25 @@ export async function getAdminDashboard() {
 export async function getPredictedWaitTime(rideId) {
   return fetchJson(`${BASE_URL}/api/wait-time/predict?rideId=${rideId}`);
 }
+
+export async function joinQueue(rideId, userId, fastPass = false) {
+  return fetchJson(`${BASE_URL}/queue/joinQueue`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rideId, userId, fastPass }),
+  });
+}
+
+export async function leaveQueue(rideId, userId) {
+  return fetchJson(`${BASE_URL}/queue/leaveQueue`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ rideId, userId }),
+  });
+}
+
+export async function getQueueStatus(rideId, userId) {
+  const query = new URLSearchParams({ rideId: String(rideId) });
+  if (userId) query.set("userId", userId);
+  return fetchJson(`${BASE_URL}/queue/queueStatus?${query.toString()}`);
+}

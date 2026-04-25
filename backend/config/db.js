@@ -22,6 +22,31 @@ const initTable = async () => {
         CHECK (status IN ('OPEN', 'CLOSED', 'MAINTENANCE', 'FULL'))
     );
   `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS queue_entries (
+      id SERIAL PRIMARY KEY,
+      ride_id INTEGER NOT NULL REFERENCES rides(id) ON DELETE CASCADE,
+      user_id VARCHAR(128) NOT NULL,
+      priority BOOLEAN NOT NULL DEFAULT FALSE,
+      status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE'
+        CHECK (status IN ('ACTIVE', 'LEFT', 'SERVED')),
+      joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      left_at TIMESTAMPTZ
+    );
+  `);
+
+  await pool.query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_active_queue_user_per_ride
+    ON queue_entries(ride_id, user_id)
+    WHERE status = 'ACTIVE';
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_queue_active_order
+    ON queue_entries(ride_id, status, priority DESC, joined_at ASC, id ASC);
+  `);
+
   console.log('Rides table ready');
 };
 

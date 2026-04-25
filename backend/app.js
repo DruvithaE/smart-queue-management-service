@@ -4,6 +4,7 @@ require("dotenv").config();
 const waitTimeController = require("./controllers/waitTimeController");
 const rideRoutes = require("./routes/rideRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const queueRoutes = require("./routes/queueRoutes");
 
 const app = express();
 
@@ -15,5 +16,6 @@ app.use(express.json());
 app.use("/api/wait-time", waitTimeController);
 app.use("/rides", rideRoutes);
 app.use("/admin", adminRoutes);
+app.use("/queue", queueRoutes);
 
 module.exports = app;  // NO app.listen here

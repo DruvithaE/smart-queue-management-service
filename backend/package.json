@@ -5,13 +5,14 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node ./node_modules/nodemon/bin/nodemon.js server.js",
-    "test": "jest --verbose --forceExit"
+    "test": "node ./node_modules/jest/bin/jest.js --verbose --forceExit"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "axios": "^1.8.2",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "pg": "^8.11.5",
