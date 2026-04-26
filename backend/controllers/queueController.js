@@ -31,27 +31,12 @@ const getWaitTime = async (rideId) => {
   }
 };
 
-// returns position of a user in queue
-const getQueuePosition = async (rideId, userId) => {
-  const result = await pool.query(`
-    SELECT user_id,
-           ROW_NUMBER() OVER (
-             ORDER BY priority DESC, joined_at ASC, id ASC
-           ) AS position
-    FROM queue_entries
-    WHERE ride_id = $1 AND status = 'ACTIVE'
-  `, [rideId]);
-
-  const user = result.rows.find(r => r.user_id === userId);
-  return user ? user.position : null;
-};
-
-// notify users only when they ENTER top 5
+// notify users with priority-aware thresholds
 const notifyNearbyUsers = async (rideId) => {
   console.log("Running notifyNearbyUsers for ride:", rideId);
 
   const result = await pool.query(`
-    SELECT user_id,
+    SELECT user_id, priority,
            ROW_NUMBER() OVER (
              ORDER BY priority DESC, joined_at ASC, id ASC
            ) AS position
@@ -64,29 +49,38 @@ const notifyNearbyUsers = async (rideId) => {
   result.rows.forEach(row => {
     const userId = row.user_id;
     const position = row.position;
+    const isPriority = row.priority;
 
     const lastPos = lastPositions.get(userId);
 
-    console.log("User:", userId, "Prev:", lastPos, "Now:", position);
+    const threshold = isPriority ? 3 : 5;
 
-    // notify only when crossing into top 5
-    if (position <= 5 && (lastPos === undefined || lastPos > 5)) {
-      let message = `You are ${position} in the queue.`;
+    console.log(
+      "User:", userId,
+      "Priority:", isPriority,
+      "Prev:", lastPos,
+      "Now:", position
+    );
+
+    // notify only when entering threshold
+    if (position <= threshold && (lastPos === undefined || lastPos > threshold)) {
+      let message;
+
+      if (isPriority) {
+        message = `You are ${position} in the Fast Pass queue.`;
+      } else {
+        message = `You are ${position} in the queue.`;
+      }
 
       if (waitData && waitData.estimatedWaitTime !== undefined) {
         message += ` Estimated wait: ${Math.ceil(waitData.estimatedWaitTime)} mins.`;
-        message += ` (${waitData.strategyUsed})`;
       }
 
       console.log("Notifying:", userId);
 
-      notificationService.sendNotification(
-        userId,
-        message
-      );
+      notificationService.sendNotification(userId, message);
     }
 
-    // update position tracking
     lastPositions.set(userId, position);
   });
 };
@@ -103,7 +97,6 @@ async function joinQueue(req, res) {
 
     const data = await queueManager.joinQueue({ rideId, userId, fastPass });
 
-    // trigger notifications after state change
     await notifyNearbyUsers(rideId);
 
     return res.status(201).json(data);
@@ -133,11 +126,13 @@ async function leaveQueue(req, res) {
 
     const data = await queueManager.leaveQueue({ rideId, userId });
 
-    // remove user from tracking when they leave
     lastPositions.delete(userId);
 
-    // notify remaining users
     await notifyNearbyUsers(rideId);
+    notificationService.sendNotification(
+      userId,
+      "You have left the queue."
+    );
 
     return res.json(data);
 

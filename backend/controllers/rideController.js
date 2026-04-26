@@ -1,4 +1,6 @@
 const rideService = require('../services/ride_service/rideService');
+const notificationService = require('../services/notification_service/notificationService');
+const { pool } = require('../config/db');
 
 const getAllRides = async (req, res) => {
   try {
@@ -19,7 +21,7 @@ const getRideById = async (req, res) => {
   }
 };
 
-// Alias route for /rides/getRideDetails/:id (matches assignment spec)
+// Alias route
 const getRideDetails = async (req, res) => {
   return getRideById(req, res);
 };
@@ -36,10 +38,47 @@ const createRide = async (req, res) => {
 const updateRideStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    if (!status) return res.status(400).json({ error: 'status is required' });
-    const ride = await rideService.updateRideStatus(req.params.id, status);
-    if (!ride) return res.status(404).json({ error: `Ride ${req.params.id} not found` });
+
+    if (!status) {
+      return res.status(400).json({ error: 'status is required' });
+    }
+
+    const rideId = req.params.id;
+
+    // update ride status
+    const ride = await rideService.updateRideStatus(rideId, status);
+
+    if (!ride) {
+      return res.status(404).json({ error: `Ride ${rideId} not found` });
+    }
+
+    // fetch users currently in queue
+    const users = await pool.query(`
+      SELECT user_id
+      FROM queue_entries
+      WHERE ride_id = $1 AND status = 'ACTIVE'
+    `, [rideId]);
+
+    // build message based on status
+    let message = "";
+
+    if (status === "CLOSED") {
+      message = "Ride is temporarily closed.";
+    } else if (status === "OPEN") {
+      message = "Ride is now open.";
+    } else if (status === "MAINTENANCE") {
+      message = "Ride is under maintenance.";
+    } else if (status === "FULL") {
+      message = "Ride is at full capacity.";
+    }
+
+    // send notification to each user
+    users.rows.forEach(row => {
+      notificationService.sendNotification(row.user_id, message);
+    });
+
     res.json(ride);
+
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -55,4 +94,11 @@ const deleteRide = async (req, res) => {
   }
 };
 
-module.exports = { getAllRides, getRideById, getRideDetails, createRide, updateRideStatus, deleteRide };
+module.exports = {
+  getAllRides,
+  getRideById,
+  getRideDetails,
+  createRide,
+  updateRideStatus,
+  deleteRide
+};
