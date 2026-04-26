@@ -6,7 +6,7 @@ const rideRoutes = require("./routes/rideRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const queueRoutes = require("./routes/queueRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
-
+const recommendationRoutes = require("./routes/recommendationRoutes");
 const app = express();
 
 // Middleware
@@ -19,5 +19,5 @@ app.use("/rides", rideRoutes);
 app.use("/admin", adminRoutes);
 app.use("/queue", queueRoutes);
 app.use("/api/notifications", notificationRoutes);
-
+app.use("/recommendation", recommendationRoutes);
 module.exports = app;  // NO app.listen here

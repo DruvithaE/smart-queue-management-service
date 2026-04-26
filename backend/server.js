@@ -5,6 +5,7 @@ const { initTable } = require("./config/db");
 const initSocket = require("./services/notification_service/socketHandler");
 const notificationService = require("./services/notification_service/notificationService");
 
+
 const PORT = process.env.PORT || 5000;
 
 initTable()

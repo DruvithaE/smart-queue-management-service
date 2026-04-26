@@ -1,7 +1,7 @@
 // src/api.js
 // Central place for all ride service API calls
 
-const BASE_URL = process.env.REACT_APP_API_BASE_URL || "http://localhost:5000";
+const BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
 async function fetchJson(url, options) {
   const res = await fetch(url, options);
@@ -77,4 +77,14 @@ export async function getQueueStatus(rideId, userId) {
   const query = new URLSearchParams({ rideId: String(rideId) });
   if (userId) query.set("userId", userId);
   return fetchJson(`${BASE_URL}/queue/queueStatus?${query.toString()}`);
+}
+
+export async function getRecommendations(strategy = "BALANCED") {
+  return fetchJson(
+    `${BASE_URL}/recommendation/recommendRides?strategy=${strategy}`
+  );
+}
+
+export async function getQueueOptimization() {
+  return fetchJson(`${BASE_URL}/recommendation/optimizeQueue`);
 }
