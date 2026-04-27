@@ -1,17 +1,28 @@
 const WaitTimeStrategy = require("./WaitTimeStrategy");
 
 class PeakHourStrategy extends WaitTimeStrategy {
-    calculate(data) {
-        const { queueLength, capacity, duration } = data;
-        const baseWaitTime = (queueLength / capacity) * duration;
+  calculate(data) {
+    const { queueLength, capacity, duration } = data;
 
-        const currentHour = new Date().getHours();
-        if (currentHour >= 12 && currentHour <= 16) {
-            return baseWaitTime * 1.2; // Increase wait time by 20% during peak hours
-        }
-
-        return baseWaitTime;
+    if (capacity === 0) {
+      throw new Error("Capacity cannot be zero");
     }
+
+    if (queueLength <= capacity) {
+      return 0;
+    }
+
+    const cycles = Math.floor(queueLength / capacity);
+    let wait = cycles * duration;
+
+    const currentHour = new Date().getHours();
+
+    if (currentHour >= 12 && currentHour <= 16) {
+      wait *= 1.2;
+    }
+
+    return Math.round(wait);
+  }
 }
 
 module.exports = PeakHourStrategy;

@@ -33,7 +33,6 @@ exports.recommendRides = async (req, res) => {
         try {
           const result = await WaitTimeLogic.calculateWaitTime(ride.id);
 
-          console.log("WaitTime result:", ride.id, result);
 
           waitTime = result?.estimatedWaitTime ?? 0;
 
@@ -92,8 +91,6 @@ exports.optimizeQueue = async (req, res) => {
 
         try {
           const result = await WaitTimeLogic.calculateWaitTime(ride.id);
-
-          console.log("WaitTime result:", ride.id, result);
 
           waitTime = result?.waitTime ?? 0;
 
