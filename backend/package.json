@@ -5,7 +5,12 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node ./node_modules/nodemon/bin/nodemon.js server.js",
-    "test": "node ./node_modules/jest/bin/jest.js --verbose --forceExit"
+    "test": "node ./node_modules/jest/bin/jest.js --verbose --forceExit",
+    "test:reliability": "node ./node_modules/jest/bin/jest.js tests/reliability.test.js --forceExit --detectOpenHandles"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testTimeout": 10000
   },
   "keywords": [],
   "author": "",
@@ -23,7 +28,7 @@
   },
   "devDependencies": {
     "jest": "^29.7.0",
-    "nodemon": "^3.1.14",
+    "nodemon": "^3.1.7",
     "supertest": "^7.0.0"
   }
 }
