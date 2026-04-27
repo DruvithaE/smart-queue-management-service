@@ -21,7 +21,7 @@ const getWaitTime = async (rideId, userId) => {
     const axios = (await import("axios")).default;
 
     const response = await axios.get(
-      `http://${process.env.REACT_APP_API_BASE_URL}/api/wait-time/predict?rideId=${rideId}&userId=${userId}`
+      `http://localhost:${process.env.PORT}/api/wait-time/predict?rideId=${rideId}&userId=${userId}`
     );
 
     return response.data;
@@ -31,7 +31,6 @@ const getWaitTime = async (rideId, userId) => {
   }
 };
 
-// notify users with priority-aware thresholds
 const notifyNearbyUsers = async (rideId) => {
   console.log("Running notifyNearbyUsers for ride:", rideId);
 
@@ -44,14 +43,12 @@ const notifyNearbyUsers = async (rideId) => {
     WHERE ride_id = $1 AND status = 'ACTIVE'
   `, [rideId]);
 
-
-  result.rows.forEach(row => {
+  for (const row of result.rows) {
     const userId = row.user_id;
     const position = row.position;
     const isPriority = row.priority;
 
     const lastPos = lastPositions.get(userId);
-
     const threshold = isPriority ? 3 : 5;
 
     console.log(
@@ -60,28 +57,32 @@ const notifyNearbyUsers = async (rideId) => {
       "Prev:", lastPos,
       "Now:", position
     );
-    const waitData = getWaitTime(rideId, userId);
+
+    const waitData = await getWaitTime(rideId, userId);
+    const waitTime = waitData?.estimatedWaitTime;
+
+    let message;
+
+    if (waitTime === 0) {
+      message = `It's your turn, please proceed to the ride.`;
+    } else {
+      message = isPriority
+        ? `You are ${position} in the Fast Pass queue.`
+        : `You are ${position} in the queue.`;
+
+      if (waitTime !== undefined && waitTime !== null) {
+        message += ` Estimated wait: ${Math.ceil(waitTime)} mins.`;
+      }
+    }
+
     // notify only when entering threshold
     if (position <= threshold && (lastPos === undefined || lastPos > threshold)) {
-      let message;
-
-      if (isPriority) {
-        message = `You are ${position} in the Fast Pass queue.`;
-      } else {
-        message = `You are ${position} in the queue.`;
-      }
-
-      if (waitData && waitData.estimatedWaitTime !== undefined) {
-        message += ` Estimated wait: ${Math.ceil(waitData.estimatedWaitTime)} mins.`;
-      }
-
       console.log("Notifying:", userId);
-
       notificationService.sendNotification(userId, message);
     }
 
     lastPositions.set(userId, position);
-  });
+  }
 };
 
 async function joinQueue(req, res) {
