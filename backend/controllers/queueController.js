@@ -21,7 +21,7 @@ const getWaitTime = async (rideId) => {
     const axios = (await import("axios")).default;
 
     const response = await axios.get(
-      `http://localhost:5000/api/wait-time/predict?rideId=${rideId}`
+      `http://${process.env.REACT_APP_API_BASE_URL}/api/wait-time/predict?rideId=${rideId}`
     );
 
     return response.data;

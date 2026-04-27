@@ -7,6 +7,7 @@ import SignupPage from "./pages/SignupPage";
 import RideStatusDisplay from "./components/RideStatusDisplay";
 import AdminPanel from "./components/AdminPanel";
 import Recommendations from "./components/Recommendations";
+import NotificationPanel from "./components/NotificationPanel"; // added
 
 function AppContent() {
   const { user, logout } = useContext(AuthContext);
@@ -19,14 +20,17 @@ function AppContent() {
   };
 
   if (!user) {
-    return null; // Auth pages handled by Router
+    return null;
   }
 
-  // Only show admin panel for admins
   const isAdmin = user.role === "admin";
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'Segoe UI', sans-serif" }}>
+      
+      {/* notification system */}
+      <NotificationPanel />
+
       {/* Top nav */}
       <nav style={{
         background: "#fff", borderBottom: "1px solid #e5e7eb",
@@ -50,14 +54,22 @@ function AppContent() {
             </>
           )}
         </div>
+
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ color: "#555", fontSize: 14 }}>👤 {user.name}</span>
-          <button onClick={handleLogout} style={{
-            padding: "6px 16px", borderRadius: 8, border: "1px solid #e5e7eb",
-            cursor: "pointer", fontWeight: 600, fontSize: 14,
-            background: "#fff", color: "#d32f2f",
-            transition: "all 0.3s"
-          }}
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: "6px 16px",
+              borderRadius: 8,
+              border: "1px solid #e5e7eb",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: 14,
+              background: "#fff",
+              color: "#d32f2f",
+              transition: "all 0.3s"
+            }}
             onMouseEnter={(e) => e.target.style.background = "#fee"}
             onMouseLeave={(e) => e.target.style.background = "#fff"}
           >
@@ -68,7 +80,6 @@ function AppContent() {
 
       {/* Content */}
       {isAdmin ? (
-        // Admin view with tabs
         tab === "user" ? (
           <div
             style={{
@@ -86,7 +97,6 @@ function AppContent() {
           <AdminPanel />
         )
       ) : (
-        // Customer view (only ride status and recommendations)
         <div
           style={{
             display: "grid",

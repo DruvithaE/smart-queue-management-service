@@ -12,10 +12,13 @@ const initSocket = (server) => {
     io.on("connection", (socket) => {
         console.log("User connected:", socket.id);
 
-        // User registers their ID
         socket.on("register", (userId) => {
-            socket.join(userId);  // 🔥 key idea
-            console.log(`User ${userId} joined room`);
+            const room = String(userId); // ensure consistent type
+
+            socket.join(room);
+
+            console.log(`User ${room} joined room`);
+            console.log("Current rooms for socket:", socket.rooms);
         });
 
         socket.on("disconnect", () => {

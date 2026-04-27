@@ -5,11 +5,13 @@ exports.setIO = (ioInstance) => {
   io = ioInstance;
 };
 
-// simple send function
 exports.sendNotification = (userId, message) => {
-  console.log("Sending notification to:", userId);
+  const room = String(userId); // ensure same type
 
-  io.to(userId).emit("notification", {
+  console.log("Sending notification to:", room);
+  console.log(io ? "IO instance is available" : "IO instance is NOT available");
+
+  io.to(room).emit("notification", {
     message,
     timestamp: new Date()
   });

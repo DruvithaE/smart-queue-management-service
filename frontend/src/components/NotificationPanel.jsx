@@ -1,42 +1,43 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import { io } from "socket.io-client";
+import { AuthContext } from "../context/AuthContext";
 
-const socket = io("http://localhost:5000");
-
-export default function NotificationPanel({ userId }) {
+export default function NotificationPanel() {
+  const { user } = useContext(AuthContext);
   const [notification, setNotification] = useState(null);
+  const [socket, setSocket] = useState(null);
 
   useEffect(() => {
-    socket.on("connect", () => {
-      socket.emit("register", userId);
+    if (!user) return;
+    const newSocket = io(process.env.REACT_APP_API_BASE_URL);
+
+    newSocket.on("connect", () => {
+      console.log("Socket connected:", newSocket.id);
+
+      newSocket.emit("register", String(user.id));
+      console.log("Registered user:", user.id);
     });
 
-    socket.on("notification", (data) => {
+    newSocket.on("notification", (data) => {
       console.log("Notification received:", data);
 
-      // replace existing notification instead of stacking
-      setNotification({
-        message: data.message,
-      });
+      setNotification({ message: data.message });
 
-      // auto remove after 5 sec
-      setTimeout(() => {
-        setNotification(null);
-      }, 5000);
+      setTimeout(() => setNotification(null), 5000);
     });
 
+    setSocket(newSocket);
+
     return () => {
-      socket.off("notification");
+      newSocket.disconnect();
     };
-  }, [userId]);
+  }, [user]);
 
   if (!notification) return null;
 
   return (
     <div style={styles.container}>
-      <div style={styles.toast}>
-        {notification.message}
-      </div>
+      <div style={styles.toast}>{notification.message}</div>
     </div>
   );
 }
