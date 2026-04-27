@@ -3,18 +3,28 @@
   justify-content: center;
   align-items: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
 
+  /* ✅ BACKGROUND IMAGE */
+  background: 
+    linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)),
+    url("../assets/login.jpg") no-repeat center center;
+
+  background-size: cover;
+  background-attachment: fixed;
+}
 .auth-card {
-  background: white;
+  background: rgba(155, 151, 151, 0.45); /* 👈 more transparent */
   padding: 40px;
   border-radius: 10px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
   width: 100%;
   max-width: 400px;
-}
 
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
 .auth-card h1 {
   margin-bottom: 30px;
   text-align: center;
@@ -61,11 +71,11 @@
 .auth-card p {
   text-align: center;
   margin-top: 20px;
-  color: #666;
+  color: #050505;
 }
 
 .auth-card a {
-  color: #667eea;
+  color: #7087ec;
   text-decoration: none;
   font-weight: bold;
 }
@@ -105,4 +115,17 @@
 
 .dashboard button:hover {
   background: #b71c1c;
+}
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  background: black; /* fallback so no white shows */
+}
+
+#root {
+  width: 100%;
+  height: 100%;
 }

@@ -95,7 +95,9 @@ function RideCard({
         border: "1px solid #f0f0f0",
         display: "flex",
         flexDirection: "column",
+        // padding: "28px 26px",
         gap: 12,
+        // minHeight: "320px",
         opacity: ride.status === "CLOSED" ? 0.65 : 1,
       }}
     >
@@ -347,8 +349,8 @@ export default function RideStatusDisplay() {
       `}</style>
 
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "#111" }}>Ride Status & Queue</h2>
-        <p style={{ margin: "6px 0 0", color: "#666", fontSize: 14 }}>Live status refresh every 30s, queue refresh every 10s</p>
+        <h2 style={{ margin: 0, fontSize: 32, fontWeight: 800, color: "#111" }}>RIDE STATUS DASHBOARD</h2>
+        <p style={{ margin: "6px 0 0", color: "#101010ff", fontSize: 14 }}>Live status refresh every 30s, queue refresh every 10s</p>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
@@ -409,7 +411,8 @@ export default function RideStatusDisplay() {
       )}
 
       {!loading && !error && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(410px, 1fr))", gap: 16, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(410px, 1fr))", gap: "28px",
+    rowGap: "32px", alignItems: "start" }}>
           {filtered.length === 0 ? (
             <div style={{ color: "#888", gridColumn: "1/-1", textAlign: "center", padding: 32 }}>
               No rides match this filter.
