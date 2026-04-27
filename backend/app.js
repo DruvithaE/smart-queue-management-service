@@ -7,6 +7,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const queueRoutes = require("./routes/queueRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const recommendationRoutes = require("./routes/recommendationRoutes");
+const authRoutes = require("./routes/authRoutes");
 const app = express();
 
 // Middleware
@@ -14,6 +15,7 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
+app.use("/api/auth", authRoutes);
 app.use("/api/wait-time", waitTimeController);
 app.use("/rides", rideRoutes);
 app.use("/admin", adminRoutes);
