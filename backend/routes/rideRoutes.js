@@ -9,5 +9,6 @@ router.get('/:id', rideController.getRideById);                   // REST standa
 router.put('/updateRideStatus/:id', rideController.updateRideStatus); // assignment spec alias
 router.put('/:id/status', rideController.updateRideStatus);           // REST standard
 router.delete('/:id', rideController.deleteRide);
+router.put('/:id', rideController.updateRide);
 
 module.exports = router;

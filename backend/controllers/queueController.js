@@ -164,8 +164,69 @@ async function queueStatus(req, res) {
   }
 }
 
+async function adminSearchQueue(req, res) {
+  try {
+    const searchTerm = String(req.query.userId || req.query.search || "").trim();
+    const rideIdRaw = req.query.rideId;
+    const rideId = rideIdRaw ? parseRideId(rideIdRaw) : null;
+    const limitRaw = req.query.limit;
+    const limit = limitRaw ? Number(limitRaw) : 50;
+
+    if (rideIdRaw && !rideId) {
+      return res.status(400).json({ error: "rideId must be a positive integer" });
+    }
+
+    const entries = await queueManager.searchActiveQueueEntries({
+      searchTerm,
+      rideId,
+      limit,
+    });
+
+    return res.json({
+      count: entries.length,
+      entries,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+}
+
+async function adminRemoveQueueUser(req, res) {
+  try {
+    const rideId = parseRideId(req.body.rideId);
+    const userId = String(req.body.userId || "").trim();
+
+    if (!rideId || !userId) {
+      return res.status(400).json({ error: "rideId and userId are required" });
+    }
+
+    const data = await queueManager.adminRemoveUserFromQueue({
+      rideId,
+      userId,
+      removedBy: req.user?.email || req.user?.id || null,
+    });
+
+    lastPositions.delete(userId);
+    await notifyNearbyUsers(rideId);
+
+    notificationService.sendNotification(
+      userId,
+      "An admin has removed you from the queue."
+    );
+
+    return res.json(data);
+  } catch (error) {
+    if (error.message.includes("No active queue entry")) {
+      return res.status(404).json({ error: error.message });
+    }
+    return res.status(500).json({ error: error.message });
+  }
+}
+
 module.exports = {
   joinQueue,
   leaveQueue,
   queueStatus,
+  adminSearchQueue,
+  adminRemoveQueueUser,
 };

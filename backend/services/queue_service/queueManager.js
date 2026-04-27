@@ -155,6 +155,116 @@ class QueueManager {
     }
   }
 
+  async searchActiveQueueEntries({ searchTerm = "", rideId = null, limit = 50 }) {
+    const client = await pool.connect();
+    try {
+      const safeLimit = Math.max(1, Math.min(Number(limit) || 50, 200));
+      const hasRideFilter = Number.isInteger(rideId) && rideId > 0;
+      const normalizedSearchTerm = String(searchTerm || "").trim();
+
+      const params = hasRideFilter
+        ? [normalizedSearchTerm, rideId, safeLimit]
+        : [normalizedSearchTerm, safeLimit];
+
+      const rideFilterClause = hasRideFilter ? "AND qe.ride_id = $2" : "";
+      const rideFilterClauseOuter = hasRideFilter ? "AND ride_id = $2" : "";
+      const limitParam = hasRideFilter ? "$3" : "$2";
+
+      const result = await client.query(
+        `WITH ordered AS (
+           SELECT
+             qe.id,
+             qe.ride_id,
+             r.name AS ride_name,
+             qe.user_id,
+             u.name AS user_name,
+             u.email AS user_email,
+             qe.priority,
+             qe.joined_at,
+             ROW_NUMBER() OVER (
+               PARTITION BY qe.ride_id
+               ORDER BY qe.priority DESC, qe.joined_at ASC, qe.id ASC
+             ) AS position
+           FROM queue_entries qe
+           JOIN rides r ON r.id = qe.ride_id
+           LEFT JOIN users u ON u.id = CASE
+             WHEN qe.user_id ~ '^[0-9]+$' THEN qe.user_id::int
+             ELSE NULL
+           END
+           WHERE qe.status = 'ACTIVE'
+           ${rideFilterClause}
+         )
+         SELECT id, ride_id, ride_name, user_id, user_name, user_email, priority, joined_at, position
+         FROM ordered
+         WHERE (
+           $1 = ''
+           OR user_id ILIKE ('%' || $1 || '%')
+           OR COALESCE(user_name, '') ILIKE ('%' || $1 || '%')
+           OR COALESCE(user_email, '') ILIKE ('%' || $1 || '%')
+         )
+         ${rideFilterClauseOuter}
+         ORDER BY joined_at ASC, id ASC
+         LIMIT ${limitParam}`,
+        params
+      );
+
+      return result.rows.map((row) => ({
+        entryId: Number(row.id),
+        rideId: Number(row.ride_id),
+        rideName: row.ride_name,
+        userId: row.user_id,
+        userName: row.user_name || null,
+        userEmail: row.user_email || null,
+        isPriority: row.priority,
+        joinedAt: row.joined_at,
+        position: Number(row.position),
+      }));
+    } finally {
+      client.release();
+    }
+  }
+
+  async adminRemoveUserFromQueue({ rideId, userId, removedBy }) {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+
+      const left = await client.query(
+        `WITH target AS (
+           SELECT id
+           FROM queue_entries
+           WHERE ride_id = $1 AND user_id = $2 AND status = 'ACTIVE'
+           ORDER BY joined_at ASC, id ASC
+           LIMIT 1
+           FOR UPDATE
+         )
+         UPDATE queue_entries
+         SET status = 'LEFT', left_at = NOW()
+         WHERE id = (SELECT id FROM target)
+         RETURNING id, ride_id, user_id, priority, joined_at, left_at`,
+        [rideId, userId]
+      );
+
+      if (left.rowCount === 0) {
+        throw new Error("No active queue entry found for this user");
+      }
+
+      await client.query("COMMIT");
+
+      return {
+        rideId: Number(left.rows[0].ride_id),
+        userId: left.rows[0].user_id,
+        leftAt: left.rows[0].left_at,
+        removedBy: removedBy || null,
+      };
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async _getPositionByEntryId(client, entryId) {
     const positionResult = await client.query(
       `SELECT COUNT(*)::int AS position

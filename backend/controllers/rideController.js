@@ -94,11 +94,43 @@ const deleteRide = async (req, res) => {
   }
 };
 
+const updateRide = async (req, res) => {
+  try {
+    const rideId = req.params.id;
+    const { name, description, capacity, duration, status } = req.body;
+
+    // basic validation
+    if (!name || !capacity || !duration || !status) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    const ride = await rideService.updateRide(
+      rideId,
+      name,
+      description,  // ✅ ADD THIS
+      capacity,
+      duration,
+      status
+    );
+
+    if (!ride) {
+      return res.status(404).json({ error: `Ride ${rideId} not found` });
+    }
+
+    res.json(ride);
+
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
 module.exports = {
   getAllRides,
   getRideById,
   getRideDetails,
   createRide,
   updateRideStatus,
-  deleteRide
+  deleteRide,
+  updateRide
 };
+
