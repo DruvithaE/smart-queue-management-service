@@ -42,6 +42,31 @@ const updateRideStatus = async (id, status) => {
   return result.rows[0] || null;
 };
 
+const updateRide = async (id, name, description, capacity, duration, status) => {
+  // validation
+  if (!name || !capacity || !duration || !status) {
+    throw new Error('name, capacity, duration, and status are required');
+  }
+
+  if (!VALID_STATUSES.includes(status)) {
+    throw new Error(`status must be one of: ${VALID_STATUSES.join(', ')}`);
+  }
+
+  const result = await pool.query(
+    `UPDATE rides
+     SET name = $1,
+         description = $2,
+         capacity = $3,
+         duration = $4,
+         status = $5
+     WHERE id = $6
+     RETURNING *`,
+    [name, description || null, capacity, duration, status, id]
+  );
+
+  return result.rows[0] || null;
+};
+
 const deleteRide = async (id) => {
   const result = await pool.query('DELETE FROM rides WHERE id = $1 RETURNING *', [id]);
   return result.rows[0] || null;
@@ -67,4 +92,5 @@ module.exports = {
   updateRideStatus,
   deleteRide,
   getAdminDashboard,
+  updateRide,
 };

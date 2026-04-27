@@ -88,16 +88,15 @@ function AddRideForm({ onAdd }) {
 
 function RideRow({ ride, onStatusChange, onDelete }) {
   const [updating, setUpdating] = useState(false);
+  const [editing, setEditing] = useState(false);
 
-  const handleStatus = async (newStatus) => {
-    setUpdating(true);
-    try {
-      await updateRideStatus(ride.id, newStatus);
-      onStatusChange();
-    } finally {
-      setUpdating(false);
-    }
-  };
+  const [form, setForm] = useState({
+    name: ride.name,
+    description: ride.description || "",
+    capacity: ride.capacity,
+    duration: ride.duration,
+    status: ride.status, // ✅ now included
+  });
 
   const handleDelete = async () => {
     if (!window.confirm(`Delete ride "${ride.name}"?`)) return;
@@ -105,36 +104,122 @@ function RideRow({ ride, onStatusChange, onDelete }) {
     onDelete();
   };
 
+  const handleSave = async () => {
+    setUpdating(true);
+    try {
+      const res = await fetch(`http://localhost:3000/rides/${ride.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          description: form.description,
+          capacity: Number(form.capacity),
+          duration: Number(form.duration),
+          status: form.status,
+        }),
+      });
+
+      const data = await res.json();   // ✅ ADD THIS
+      console.log("UPDATED:", data);   // ✅ ADD THIS
+
+      setEditing(false);
+      onStatusChange();
+    } catch (e) {
+      console.error(e);
+      alert("Backend not reachable or API missing");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const inputStyle = {
+    padding: "4px 8px",
+    borderRadius: 6,
+    border: "1px solid #e5e7eb",
+    width: "100%",
+  };
+
   return (
     <tr style={{ borderBottom: "1px solid #f1f5f9" }}>
-      <td style={{ padding: "12px 16px", fontWeight: 600, color: "#111" }}>{ride.id}</td>
-      <td style={{ padding: "12px 16px" }}>{ride.name}</td>
-      <td style={{ padding: "12px 16px", color: "#4f46e5", fontWeight: 700 }}>{ride.capacity}</td>
-      <td style={{ padding: "12px 16px", color: "#0891b2", fontWeight: 700 }}>{ride.duration} min</td>
+      <td style={{ padding: "12px 16px", fontWeight: 600 }}>{ride.id}</td>
+
       <td style={{ padding: "12px 16px" }}>
-        <select value={ride.status} disabled={updating}
-          onChange={e => handleStatus(e.target.value)}
-          style={{
-            padding: "5px 10px", borderRadius: 8, border: "none", cursor: "pointer",
-            fontWeight: 700, fontSize: 13,
+        {editing ? (
+          <input value={form.name}
+            onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+            style={inputStyle} />
+        ) : ride.name}
+      </td>
+
+      <td style={{ padding: "12px 16px" }}>
+        {editing ? (
+          <input type="number"
+            value={form.capacity}
+            onChange={e => setForm(f => ({ ...f, capacity: e.target.value }))}
+            style={inputStyle} />
+        ) : <span style={{ color: "#4f46e5", fontWeight: 700 }}>{ride.capacity}</span>}
+      </td>
+
+      <td style={{ padding: "12px 16px" }}>
+        {editing ? (
+          <input type="number" step="0.1"
+            value={form.duration}
+            onChange={e => setForm(f => ({ ...f, duration: e.target.value }))}
+            style={inputStyle} />
+        ) : <span style={{ color: "#0891b2", fontWeight: 700 }}>{ride.duration} min</span>}
+      </td>
+
+      {/* ✅ STATUS now editable but NOT saved instantly */}
+      <td style={{ padding: "12px 16px" }}>
+        {editing ? (
+          <select value={form.status}
+            onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+            style={{
+              padding: "5px 10px",
+              borderRadius: 8,
+              border: "1px solid #e5e7eb",
+              fontWeight: 700,
+              fontSize: 13,
+            }}>
+            {STATUSES.map(s => <option key={s}>{s}</option>)}
+          </select>
+        ) : (
+          <span style={{
             background: STATUS_COLORS[ride.status] + "20",
             color: STATUS_COLORS[ride.status],
+            padding: "4px 10px",
+            borderRadius: 8,
+            fontWeight: 700,
           }}>
-          {STATUSES.map(s => <option key={s}>{s}</option>)}
-        </select>
+            {ride.status}
+          </span>
+        )}
       </td>
-      <td style={{ padding: "12px 16px" }}>
-        <button onClick={handleDelete} style={{
-          background: "#fee2e2", color: "#dc2626", border: "none",
-          borderRadius: 6, padding: "5px 12px", cursor: "pointer", fontWeight: 600, fontSize: 12,
-        }}>
+
+      <td style={{ padding: "12px 16px", display: "flex", gap: 6 }}>
+        {editing ? (
+          <button onClick={handleSave} disabled={updating}
+            style={{ background: "#dcfce7", color: "#16a34a", border: "none",
+              borderRadius: 6, padding: "5px 10px", cursor: "pointer" }}>
+            Save
+          </button>
+        ) : (
+          <button onClick={() => setEditing(true)}
+            style={{ background: "#e0e7ff", color: "#4f46e5", border: "none",
+              borderRadius: 6, padding: "5px 10px", cursor: "pointer" }}>
+            Edit
+          </button>
+        )}
+
+        <button onClick={handleDelete}
+          style={{ background: "#fee2e2", color: "#dc2626", border: "none",
+            borderRadius: 6, padding: "5px 10px", cursor: "pointer" }}>
           Delete
         </button>
       </td>
     </tr>
   );
 }
-
 export default function AdminPanel() {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
