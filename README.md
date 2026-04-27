@@ -655,3 +655,101 @@ The Smart Queue Management System successfully meets its **Usability NFRs**:
 Overall, the system demonstrates **efficient, intuitive, and responsive behavior**, making it user-friendly and practical for real-world deployment.
 
 ---
+
+
+
+## Consistency / Correctness Under Concurrency (k6) — Join Queue Validation
+
+### Goal
+Validate that the **queue join operation remains correct and consistent** under concurrent access, i.e., that:
+1. Requests succeed without errors (low failure rate)
+2. The API returns a **valid queue position** for each successful join
+
+This supports the system’s non-functional requirements related to **reliability/consistency under load** (even with a small controlled number of users).
+
+---
+
+### What was tested
+
+**Endpoint**
+- `POST /queue/joinQueue`
+
+**Behavior validated**
+- `join success`: request returns HTTP **201** (as defined in the test script)
+- `has valid position`: response JSON contains a `position` field and `position > 0`
+
+![alt text](image-4.png)
+
+---
+
+### Test script used (k6)
+
+**Script:** `consistency-test.js` (as shown in screenshot)  
+Key characteristics:
+- Unique `userId` every iteration: `user_${__VU}_${__ITER}_${Date.now()}`
+- 20% of requests use `fastPass` (`Math.random() < 0.2`)
+- Each VU sleeps 1 second between iterations (`sleep(1)`)
+
+---
+
+### Load profile
+- **Concurrent users (VUs):** 5
+- **Test duration:** 30 seconds
+- **Think time:** 1 second per iteration per VU
+- **Traffic pattern:** constant small concurrency (controlled benchmark)
+
+---
+
+### Thresholds
+Configured thresholds:
+
+- `http_req_failed rate < 0.05` (less than 5% request failures)
+
+---
+
+### Results (from k6 output screenshot)
+
+![alt text](image-3.png)
+
+**Threshold evaluation**
+- `http_req_failed`: **0.00%** ✅ PASS (below 5% failure threshold)
+
+**Checks (consistency/correctness)**
+- `checks_total`: **82**
+- `checks_succeeded`: **100.00% (82/82)**
+- `checks_failed`: **0.00%**
+
+✅ Both validations passed:
+- `join success`
+- `has valid position`
+
+**HTTP performance indicators (observed during consistency test)**
+- `http_req_duration`:
+  - avg: **2.96 s**
+  - min: **1.63 s**
+  - median (p50): **2.99 s**
+  - p90: **3.51 s**
+  - p95: **3.57 s**
+  - max: **3.58 s**
+- total requests (`http_reqs`): **41**
+- request failure rate: **0.00%**
+
+---
+
+### Conclusion
+
+✅ **PASS — Consistency under concurrency (5 VUs):**
+- 0% HTTP failures
+- 100% checks passed (successful join + valid position returned)
+
+This indicates the system maintains **correct join behavior and returns consistent queue positions** during concurrent joins at the tested scale.
+
+> Note: This test is primarily aimed at validating correctness/consistency rather than meeting a strict latency target. Latency values are reported as observed but were not gated by a latency threshold in this script.
+
+---
+
+### Notes / Assumptions
+
+- This is a controlled small-scale test (5 concurrent virtual users) as recommended when large-scale user simulation (e.g., 50,000 users) is impractical during development.
+- The use of unique user IDs avoids expected conflicts such as duplicate active queue entries, allowing correctness checks to focus on core logic.
+- For stronger consistency guarantees (e.g., ordering fairness between fastPass and normal users), additional assertions would be needed (e.g., comparing returned positions across cohorts), but this test confirms the API returns structurally valid queue state under concurrent joins.
