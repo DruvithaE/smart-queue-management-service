@@ -107,3 +107,168 @@ Admin login is handled through the auth system. The admin dashboard is shown whe
 - Backend queue data is persisted in PostgreSQL.
 - Queue entries are not deleted when a user leaves; they are marked as inactive for history and auditing.
 - The frontend polls ride status and queue status so the UI stays live.
+
+
+
+## TESTING:
+
+
+# Latency (NFR) Evaluation
+
+**NFR Targets**
+
+- **Queue updates reflected:** ≤ **200 ms** at **95th percentile (p95)**
+- **Notifications delivered:** ≤ **2 seconds**
+
+**Test Date:** 2026-04-27  
+**System Under Test:** `smart-queue-management-service` (local run)  
+**Backend Base URL:** `http://localhost:3000`
+
+---
+
+## 1) Queue Updates Reflected Latency (Read Path)
+
+### Definition (what “reflected” means in this test)
+
+A “queue update is reflected” when the client can fetch the latest queue state from the backend.
+
+Therefore, we measure the latency of:
+
+- `GET /queue/queueStatus?rideId=1&userId=4`
+
+This endpoint is also used by the frontend API client:
+
+- `frontend/src/api.js` → function `getQueueStatus(rideId, userId)` (calls `GET /queue/queueStatus`)
+
+### Tooling
+
+- Load testing tool: **autocannon**
+- Command executed:
+
+```bash
+npx autocannon -c 50 -d 30 \
+  "http://localhost:3000/queue/queueStatus?rideId=1&userId=4"
+```
+
+**Load profile**
+
+- Concurrency (`-c`): **50 simultaneous connections**
+- Duration (`-d`): **30 seconds**
+
+### Results 
+
+![alt text](image.png)
+
+From the autocannon output:
+
+- **Median (p50): 19 ms**
+- **p97.5: 81 ms**
+- **p99: 107 ms**
+- **Max: 165 ms**
+- **Average throughput:** ~**2029 requests/sec** (Avg Req/Sec)
+
+> Note: autocannon prints percentiles at 2.5%, 50%, 97.5%, 99%.  
+> Since **p97.5 = 81 ms**, it implies **p95 ≤ 81 ms** (p95 is always ≤ p97.5).
+
+### Conclusion vs NFR
+
+- **Measured:** p95 ≤ **81 ms**
+- **Target:** p95 ≤ **200 ms**
+
+✅ **PASS** — Queue update reflection latency meets the NFR under the tested load.
+
+---
+
+## 2) Notification Delivery Latency (Socket.IO)
+
+### NFR Target
+- **Notifications delivered within ≤ 2 seconds (p95)**
+
+---
+
+### Definition (what “notification delivered” means)
+A notification is considered **delivered** when it is received by the Socket.IO client event handler:
+
+- `socket.on("notification", (data) => { ... })`
+
+We measure end-to-end notification delivery latency as:
+
+> **Notification latency (ms) = client_receive_time_ms − server_emit_time_ms**
+
+Where:
+- `server_emit_time_ms` comes from the backend payload field `timestamp`
+- `client_receive_time_ms` is measured using `Date.now()` at the instant the client receives the event
+
+---
+
+### Implementation reference (code evidence / used code lines)
+
+**(a) Backend emits notification with a timestamp (used as server emit time)**
+- File: `backend/services/notification_service/notificationService.js`
+- Function: `sendNotification(userId, message)`
+- The payload includes `timestamp: new Date()`:
+
+https://github.com/DruvithaE/smart-queue-management-service/blob/ba3f620ecff973dec4e1c223e6a68c13f8a32ae5/backend/services/notification_service/notificationService.js#L9-L18
+
+**(b) Socket room registration (ensures notifications go to the correct user room)**
+- File: `backend/services/notification_service/socketHandler.js`
+- On `register`, server joins room `String(userId)`:
+
+https://github.com/DruvithaE/smart-queue-management-service/blob/ba3f620ecff973dec4e1c223e6a68c13f8a32ae5/backend/services/notification_service/socketHandler.js#L11-L22
+
+**(c) Notification API route (used to trigger notifications during testing)**
+- The notification routes are mounted at `/api/notifications`:
+
+https://github.com/DruvithaE/smart-queue-management-service/blob/f801c193dc0b24f686c8375a902cb14a74f693e8/backend/app.js#L17-L24
+
+- And the route `POST /notify` is defined here:
+
+https://github.com/DruvithaE/smart-queue-management-service/blob/ba3f620ecff973dec4e1c223e6a68c13f8a32ae5/backend/routes/notificationRoutes.js#L1-L12
+
+So the full trigger endpoint is:
+
+- `POST /api/notifications/notify`
+
+---
+
+### Tooling & Test Method
+
+**Measurement approach (terminal-based Socket.IO client)**  
+A Node.js script was used to:
+1. Connect to Socket.IO server at `http://localhost:3000`
+2. Register user room with `register(userId = "4")`
+3. Trigger notifications by calling `POST /api/notifications/notify` 100 times
+4. Compute latency on each received `"notification"` event:
+   - `latencyMs = Date.now() - new Date(data.timestamp).getTime()`
+5. Calculate percentiles from collected samples
+
+**Test configuration**
+- Sample size: **N = 100** notifications
+- Target user room: **userId = "4"**
+- Backend base URL: `http://localhost:3000`
+
+(Attach screenshot of the terminal output from running the script.)
+
+---
+
+### Results
+
+![alt text](image-1.png)
+![alt text](image-2.png)
+
+From the terminal summary:
+
+- Samples: **100**
+- **p50:** 1 ms
+- **p95:** 5 ms
+- **p99:** 18 ms
+- **max:** 18 ms
+
+---
+
+### Conclusion vs NFR
+
+- **Measured:** p95 = **5 ms**
+- **Target:** p95 ≤ **2000 ms**
+
+✅ **PASS** — Notification delivery latency meets the NFR in the tested environment.
