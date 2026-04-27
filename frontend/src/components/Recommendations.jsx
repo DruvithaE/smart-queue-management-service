@@ -46,7 +46,7 @@ const Recommendations = () => {
     >
       {/* Header */}
       <div style={{ marginBottom: "12px" }}>
-        <h3 style={{ margin: 0 }}>🎯 Smart Recommendations</h3>
+        <h3 style={{ margin: 0 }}>Recommended Rides</h3>
         <p style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
           Optimized based on wait time & crowd levels
         </p>

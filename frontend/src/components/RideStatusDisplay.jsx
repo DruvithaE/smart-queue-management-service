@@ -349,8 +349,8 @@ export default function RideStatusDisplay() {
       `}</style>
 
       <div style={{ marginBottom: 20 }}>
-        <h2 style={{ margin: 0, fontSize: 32, fontWeight: 800, color: "#111" }}>RIDE STATUS DASHBOARD</h2>
-        <p style={{ margin: "6px 0 0", color: "#101010ff", fontSize: 14 }}>Live status refresh every 30s, queue refresh every 10s</p>
+        <h2 style={{ margin: 0, fontSize: 32, fontWeight: 800, color: "#f9f9f9ff" }}>RIDE STATUS DASHBOARD</h2>
+        <p style={{ margin: "6px 0 0", color: "#f6f4f4ff", fontSize: 14 }}>Live status refresh every 30s, queue refresh every 10s</p>
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
