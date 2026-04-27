@@ -10,7 +10,7 @@ class QueueManager {
     return QueueManager.instance;
   }
 
-  async joinQueue({ rideId, userId, fastPass = false }) {
+  async joinQueue({ rideId, userId, fastPass = false, members = [], groupSize = 1  }) {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -38,10 +38,10 @@ class QueueManager {
       }
 
       const inserted = await client.query(
-        `INSERT INTO queue_entries (ride_id, user_id, priority, status)
-         VALUES ($1, $2, $3, 'ACTIVE')
+        `INSERT INTO queue_entries (ride_id, user_id, priority, group_size, selected_members, status)
+VALUES ($1, $2, $3, $4, $5, 'ACTIVE')
          RETURNING id, ride_id, user_id, priority, joined_at`,
-        [rideId, userId, Boolean(fastPass)]
+        [rideId, userId, Boolean(fastPass), groupSize, JSON.stringify(members)]
       );
 
       const entry = inserted.rows[0];
@@ -110,9 +110,9 @@ class QueueManager {
     try {
       const totalsResult = await client.query(
         `SELECT
-           COUNT(*) FILTER (WHERE status = 'ACTIVE')::int AS total_active,
-           COUNT(*) FILTER (WHERE status = 'ACTIVE' AND priority = TRUE)::int AS priority_active,
-           COUNT(*) FILTER (WHERE status = 'ACTIVE' AND priority = FALSE)::int AS regular_active
+           COALESCE(SUM(group_size) FILTER (WHERE status = 'ACTIVE'), 0)::int AS total_active,
+            COALESCE(SUM(group_size) FILTER (WHERE status = 'ACTIVE' AND priority = TRUE), 0)::int AS priority_active,
+            COALESCE(SUM(group_size) FILTER (WHERE status = 'ACTIVE' AND priority = FALSE), 0)::int AS regular_active
          FROM queue_entries
          WHERE ride_id = $1`,
         [rideId]
@@ -265,28 +265,38 @@ class QueueManager {
     }
   }
 
-  async _getPositionByEntryId(client, entryId) {
-    const positionResult = await client.query(
-      `SELECT COUNT(*)::int AS position
-       FROM queue_entries q
-       JOIN queue_entries me ON me.id = $1
-       WHERE q.ride_id = me.ride_id
-         AND q.status = 'ACTIVE'
-         AND (
-           (q.priority = TRUE AND me.priority = FALSE)
-           OR (
-             q.priority = me.priority
-             AND (
-               q.joined_at < me.joined_at
-               OR (q.joined_at = me.joined_at AND q.id <= me.id)
-             )
-           )
-         )`,
-      [entryId]
-    );
+async _getPositionByEntryId(client, entryId) {
+  // Step 1: get current entry info
+  const current = await client.query(
+    `SELECT ride_id, priority, joined_at, id
+     FROM queue_entries
+     WHERE id = $1`,
+    [entryId]
+  );
 
-    return positionResult.rows[0].position;
-  }
+  if (current.rowCount === 0) return 0;
+
+  const { ride_id, priority, joined_at, id } = current.rows[0];
+
+  // Step 2: calculate people ahead
+  const result = await client.query(
+    `SELECT COALESCE(SUM(group_size), 0)::int AS people_ahead
+     FROM queue_entries
+     WHERE ride_id = $1
+       AND status = 'ACTIVE'
+       AND (
+         (priority = TRUE AND $2 = FALSE)
+         OR
+         (priority = $2 AND joined_at < $3)
+         OR
+         (priority = $2 AND joined_at = $3 AND id < $4)
+       )`,
+    [ride_id, priority, joined_at, id]
+  );
+
+  const peopleAhead = Number(result.rows[0]?.people_ahead || 0);
+  return peopleAhead + 1;
+}
 }
 
 module.exports = QueueManager;

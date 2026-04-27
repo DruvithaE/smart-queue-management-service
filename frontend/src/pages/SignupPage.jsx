@@ -29,7 +29,7 @@ const SignupPage = () => {
         "customer",
         formData.name
       );
-      navigate("/customer");
+      navigate("/");
     } catch (err) {
       setError(err.message);
     }

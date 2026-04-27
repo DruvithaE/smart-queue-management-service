@@ -23,3 +23,5 @@ app.use("/queue", queueRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/recommendation", recommendationRoutes);
 module.exports = app;  // NO app.listen here
+const userRoutes = require("./routes/userRoutes");
+app.use("/users", userRoutes);

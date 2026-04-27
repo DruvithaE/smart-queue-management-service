@@ -89,13 +89,21 @@ async function joinQueue(req, res) {
   try {
     const rideId = parseRideId(req.body.rideId);
     const userId = String(req.body.userId || "").trim();
-    const fastPass = Boolean(req.body.fastPass);
+    const fastPass = Boolean(req.body.fastPass ?? req.body.priority);
+    const members = Array.isArray(req.body.members) ? req.body.members : [];
+    const groupSize = members.length > 0 ? members.length : 1;
 
     if (!rideId || !userId) {
       return res.status(400).json({ error: "rideId and userId are required" });
     }
 
-    const data = await queueManager.joinQueue({ rideId, userId, fastPass });
+    const data = await queueManager.joinQueue({
+      rideId,
+      userId,
+      fastPass,
+      members,
+      groupSize,
+    });
 
     await notifyNearbyUsers(rideId);
 

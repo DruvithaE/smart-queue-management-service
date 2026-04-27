@@ -9,6 +9,8 @@ import AdminPanel from "./components/AdminPanel";
 import Recommendations from "./components/Recommendations";
 import NotificationPanel from "./components/NotificationPanel";
 import "./App.css";
+import UserProfile from "./components/UserProfile";
+
 function AppContent() {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
@@ -31,10 +33,8 @@ function AppContent() {
         className="app-content"
         style={{ minHeight: "100vh", fontFamily: "'Segoe UI', sans-serif" }}
       >
-        {/* notification system */}
         <NotificationPanel />
 
-        {/* Top nav */}
         <nav
           style={{
             background: "#fff",
@@ -59,50 +59,62 @@ function AppContent() {
               🎡 SmartQueue
             </span>
 
-            {isAdmin && (
-              <>
-                {[
+            {(isAdmin
+              ? [
                   ["user", "🎢 Ride Status"],
                   ["admin", "⚙️ Admin Panel"],
-                ].map(([key, label]) => (
-                  <button
-                    key={key}
-                    onClick={() => setTab(key)}
-                    style={{
-                      padding: "6px 18px",
-                      borderRadius: 8,
-                      border: "none",
-                      cursor: "pointer",
-                      fontWeight: 600,
-                      fontSize: 14,
-                      background: tab === key ? "#4f46e5" : "transparent",
-                      color: tab === key ? "#fff" : "#555",
-                      transition: "all 0.3s ease",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (tab !== key) {
-                        e.target.style.background = "#eef2ff";
-                        e.target.style.color = "#4f46e5";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (tab !== key) {
-                        e.target.style.background = "transparent";
-                        e.target.style.color = "#555";
-                      }
-                    }}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </>
-            )}
+                ]
+              : [
+                  ["user", "🎢 Ride Status"],
+                  // ["profile", "👤 Profile"],
+                ]
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                style={{
+                  padding: "6px 18px",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                  fontSize: 14,
+                  background: tab === key ? "#4f46e5" : "transparent",
+                  color: tab === key ? "#fff" : "#555",
+                  transition: "all 0.3s ease",
+                }}
+                onMouseEnter={(e) => {
+                  if (tab !== key) {
+                    e.target.style.background = "#eef2ff";
+                    e.target.style.color = "#4f46e5";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (tab !== key) {
+                    e.target.style.background = "transparent";
+                    e.target.style.color = "#555";
+                  }
+                }}
+              >
+                {label}
+              </button>
+            ))}
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ color: "#555", fontSize: 14 }}>
-              👤 {user.name}
-            </span>
+            <button
+  onClick={() => setTab("profile")}
+  style={{
+    background: "transparent",
+    border: "none",
+    cursor: "pointer",
+    color: "#4f46e5",
+    fontWeight: 600,
+    fontSize: 14,
+  }}
+>
+  👤 {user.name}
+</button>
 
             <button
               onClick={handleLogout}
@@ -125,66 +137,46 @@ function AppContent() {
           </div>
         </nav>
 
-        {/* Content */}
         {isAdmin ? (
           tab === "user" ? (
-            <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "3fr 1.2fr",
-    gap: "20px",
-    padding: "20px",
-    alignItems: "start",
-  }}
->
-  {/* LEFT */}
-  <div>
-    <RideStatusDisplay />
-  </div>
-
-  {/* RIGHT */}
-  <div
-    style={{
-      position: "sticky",
-      top: "80px",
-      maxHeight: "calc(100vh - 100px)",
-      overflowY: "auto",
-    }}
-  >
-    <Recommendations />
-  </div>
-</div>
+            <MainLayout />
           ) : (
             <AdminPanel />
           )
+        ) : tab === "profile" ? (
+          <UserProfile />
         ) : (
-          <div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "3fr 1.2fr", // slightly smaller right panel
-    gap: "20px",
-    padding: "20px",
-    alignItems: "start",
-  }}
->
-  {/* LEFT SIDE (rides) */}
-  <div>
-    <RideStatusDisplay />
-  </div>
-
-  {/* RIGHT SIDE (recommendations) */}
-  <div
-    style={{
-      position: "sticky",
-      top: "80px", // stays below navbar
-      maxHeight: "calc(100vh - 100px)",
-      overflowY: "auto",
-    }}
-  >
-    <Recommendations />
-  </div>
-</div>
+          <MainLayout />
         )}
+      </div>
+    </div>
+  );
+}
+
+function MainLayout() {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "3fr 1.2fr",
+        gap: "20px",
+        padding: "20px",
+        alignItems: "start",
+      }}
+    >
+      <div>
+        <RideStatusDisplay />
+      </div>
+
+      <div
+        style={{
+          position: "sticky",
+          top: "80px",
+          maxHeight: "calc(100vh - 100px)",
+          overflowY: "auto",
+        }}
+      >
+        <Recommendations />
       </div>
     </div>
   );

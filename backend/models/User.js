@@ -20,11 +20,58 @@ const User = {
   },
 
   async findById(id) {
-    const query = `SELECT id, email, role, name, created_at FROM users WHERE id = $1`;
+    const query = `
+      SELECT 
+        id, email, role, name,
+        member1, member2, member3, member4,
+        no_of_members,
+        past_rides,
+        created_at
+      FROM users 
+      WHERE id = $1
+    `;
     const result = await pool.query(query, [id]);
     return result.rows[0];
   },
 
+  async addPastRide(userId, rideData) {
+    const query = `
+      UPDATE users
+      SET past_rides = COALESCE(past_rides, '[]'::jsonb) || $1::jsonb,
+          updated_at = NOW()
+      WHERE id = $2
+      RETURNING id, past_rides
+    `;
+
+    const result = await pool.query(query, [
+      JSON.stringify([rideData]),
+      userId,
+    ]);
+
+    return result.rows[0];
+  },
+  async updateMembers(userId, member1, member2, member3, member4) {
+  const query = `
+    UPDATE users
+    SET member1 = $1,
+        member2 = $2,
+        member3 = $3,
+        member4 = $4,
+        updated_at = NOW()
+    WHERE id = $5
+    RETURNING id, email, role, name, member1, member2, member3, member4, no_of_members, past_rides
+  `;
+
+  const result = await pool.query(query, [
+    member1 || null,
+    member2 || null,
+    member3 || null,
+    member4 || null,
+    userId,
+  ]);
+
+  return result.rows[0];
+},
   async verifyPassword(plainPassword, hashedPassword) {
     return await bcrypt.compare(plainPassword, hashedPassword);
   }

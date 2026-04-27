@@ -78,13 +78,18 @@ export async function getPredictedWaitTime(
   return fetchJson(url);
 }
 
-export async function joinQueue(rideId, userId, fastPass = false) {
+export const joinQueue = async (rideId, userId, priority = false, members = []) => {
   return fetchJson(`${BASE_URL}/queue/joinQueue`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ rideId, userId, fastPass }),
+    body: JSON.stringify({
+      rideId,
+      userId,
+      priority,
+      members,
+    }),
   });
-}
+};
 
 export async function leaveQueue(rideId, userId) {
   return fetchJson(`${BASE_URL}/queue/leaveQueue`, {
@@ -134,3 +139,20 @@ export async function adminRemoveQueueEntry(rideId, userId) {
     body: JSON.stringify({ rideId, userId }),
   });
 }
+
+export const getUserProfile = async (userId) => {
+  const res = await fetch(`http://localhost:3000/users/${userId}`);
+  if (!res.ok) throw new Error("Failed to fetch user profile");
+  return res.json();
+};
+
+export const updateUserMembers = async (userId, members) => {
+  const res = await fetch(`http://localhost:3000/users/${userId}/members`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(members),
+  });
+
+  if (!res.ok) throw new Error("Failed to update members");
+  return res.json();
+};

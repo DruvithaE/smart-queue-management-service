@@ -15,7 +15,7 @@ const LoginPage = () => {
     setError("");
     try {
       const data = await login(email, password);
-      navigate(data.user.role === "admin" ? "/admin" : "/customer");
+      navigate("/");
     } catch (err) {
       setError(err.message);
     }

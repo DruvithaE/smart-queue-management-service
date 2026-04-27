@@ -62,7 +62,8 @@ function RideCard({
   const [loadingWait, setLoadingWait] = useState(false);
   const [waitError, setWaitError] = useState("");
   const [fastPass, setFastPass] = useState(false);
-
+  const [showMemberPopup, setShowMemberPopup] = useState(false);
+  const [selectedMembers, setSelectedMembers] = useState([user?.name]);
   const handleViewWait = async () => {
     if (showWait) {
       setShowWait(false);
@@ -152,7 +153,7 @@ function RideCard({
         </label>
 
         <button
-          onClick={() => onJoinQueue(ride.id, fastPass)}
+          onClick={() => setShowMemberPopup(true)}
           disabled={!canQueue || queueInfo?.userInQueue || queueBusy}
           style={{
             padding: "8px 14px",
@@ -232,7 +233,81 @@ function RideCard({
       )}
 
       {showWait && waitError && <div style={{ color: "red", marginTop: 8 }}>{waitError}</div>}
+
+{/* 👇 ADD HERE */}
+{showMemberPopup && (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,0.55)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 9999,
+    }}
+  >
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 16,
+        padding: 24,
+        width: 360,
+        boxShadow: "0 20px 40px rgba(0,0,0,0.25)",
+      }}
+    >
+      <h3 style={{ marginTop: 0 }}>Select Riders</h3>
+
+      {[user?.name, user?.member1, user?.member2, user?.member3, user?.member4]
+        .filter(Boolean)
+        .map((name) => (
+          <label key={name} style={{ display: "block", marginBottom: 10 }}>
+            <input
+              type="checkbox"
+              checked={selectedMembers.includes(name)}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  setSelectedMembers((prev) => [...prev, name]);
+                } else {
+                  setSelectedMembers((prev) =>
+                    prev.filter((m) => m !== name)
+                  );
+                }
+              }}
+            />{" "}
+            {name === user?.name ? `${name} (Me)` : name}
+          </label>
+        ))}
+
+      <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
+        <button onClick={() => setShowMemberPopup(false)}>
+          Cancel
+        </button>
+
+        <button
+          disabled={selectedMembers.length === 0}
+          onClick={() => {
+            onJoinQueue(ride.id, fastPass, selectedMembers);
+            setShowMemberPopup(false);
+          }}
+          style={{
+            background: "#2563eb",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            padding: "8px 14px",
+            cursor: "pointer",
+          }}
+        >
+          Confirm Join
+        </button>
+      </div>
     </div>
+  </div>
+)}
+
+</div>
+    
   );
 }
 
@@ -275,15 +350,14 @@ export default function RideStatusDisplay() {
     await Promise.all(sourceRides.map((ride) => refreshQueueStatus(ride.id, userId)));
   };
 
-  const handleJoinQueue = async (rideId, fastPass) => {
-    if (!userId) {
+const handleJoinQueue = async (rideId, fastPass, members = []) => {    if (!userId) {
       setQueueError("Enter your visitor ID before joining a queue.");
       return;
     }
 
     try {
       setQueueBusyMap((prev) => ({ ...prev, [rideId]: true }));
-      await joinQueue(rideId, userId, fastPass);
+      await joinQueue(rideId, userId, fastPass, members);
       await refreshQueueStatus(rideId, userId);
       setQueueError("");
     } catch (e) {
@@ -431,6 +505,7 @@ export default function RideStatusDisplay() {
           )}
         </div>
       )}
+      
     </div>
   );
 }
