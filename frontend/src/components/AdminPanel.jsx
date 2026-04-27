@@ -107,7 +107,7 @@ function RideRow({ ride, onStatusChange, onDelete }) {
   const handleSave = async () => {
     setUpdating(true);
     try {
-      const res = await fetch(`http://localhost:3000/rides/${ride.id}`, {
+      const res = await fetch(`http://localhost:${process.env.REACT_APP_BACKEND_PORT}/rides/${ride.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
