@@ -4,19 +4,15 @@ const User = require("../models/User");
 const authController = {
   async signup(req, res) {
     try {
-      const { email, password, confirmPassword, role, name } = req.body;
+      const { email, password, confirmPassword, name } = req.body;
 
       // Validation
-      if (!email || !password || !role || !name) {
+      if (!email || !password || !name) {
         return res.status(400).json({ message: "All fields required" });
       }
 
       if (password !== confirmPassword) {
         return res.status(400).json({ message: "Passwords do not match" });
-      }
-
-      if (!["admin", "customer"].includes(role)) {
-        return res.status(400).json({ message: "Invalid role" });
       }
 
       // Check if user exists
@@ -25,8 +21,8 @@ const authController = {
         return res.status(409).json({ message: "Email already registered" });
       }
 
-      // Create user
-      const newUser = await User.create(email, password, role, name);
+      // Create user as customer (role always "customer")
+      const newUser = await User.create(email, password, "customer", name);
 
       // Generate token
       const token = jwt.sign(

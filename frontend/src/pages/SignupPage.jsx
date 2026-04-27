@@ -8,8 +8,7 @@ const SignupPage = () => {
     name: "",
     email: "",
     password: "",
-    confirmPassword: "",
-    role: "customer"
+    confirmPassword: ""
   });
   const [error, setError] = useState("");
   const { signup } = useContext(AuthContext);
@@ -27,10 +26,10 @@ const SignupPage = () => {
         formData.email,
         formData.password,
         formData.confirmPassword,
-        formData.role,
+        "customer",
         formData.name
       );
-      navigate(data.user.role === "admin" ? "/admin" : "/customer");
+      navigate("/customer");
     } catch (err) {
       setError(err.message);
     }
@@ -74,10 +73,6 @@ const SignupPage = () => {
             onChange={handleChange}
             required
           />
-          <select name="role" value={formData.role} onChange={handleChange}>
-            <option value="customer">Customer</option>
-            <option value="admin">Admin</option>
-          </select>
           <button type="submit">Sign Up</button>
         </form>
         <p>Already have an account? <Link to="/login">Login</Link></p>
