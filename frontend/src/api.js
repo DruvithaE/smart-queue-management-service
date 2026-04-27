@@ -3,6 +3,14 @@
 
 const BASE_URL = process.env.REACT_APP_API_BASE_URL;
 
+function getAuthHeaders() {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    return {};
+  }
+  return { Authorization: `Bearer ${token}` };
+}
+
 async function fetchJson(url, options) {
   const res = await fetch(url, options);
   const contentType = res.headers.get("content-type") || "";
@@ -50,7 +58,9 @@ export async function deleteRide(rideId) {
 }
 
 export async function getAdminDashboard() {
-  return fetchJson(`${BASE_URL}/admin/dashboard`);
+  return fetchJson(`${BASE_URL}/admin/dashboard`, {
+    headers: { ...getAuthHeaders() },
+  });
 }
 
 export async function getPredictedWaitTime(rideId) {
@@ -87,4 +97,29 @@ export async function getRecommendations(strategy = "BALANCED") {
 
 export async function getQueueOptimization() {
   return fetchJson(`${BASE_URL}/recommendation/optimizeQueue`);
+}
+
+export async function searchQueueEntriesByUserId(searchTerm, rideId, limit = 50) {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (searchTerm && String(searchTerm).trim()) {
+    query.set("search", String(searchTerm).trim());
+  }
+  if (rideId) {
+    query.set("rideId", String(rideId));
+  }
+
+  return fetchJson(`${BASE_URL}/queue/admin/search?${query.toString()}`, {
+    headers: { ...getAuthHeaders() },
+  });
+}
+
+export async function adminRemoveQueueEntry(rideId, userId) {
+  return fetchJson(`${BASE_URL}/queue/admin/remove`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ rideId, userId }),
+  });
 }

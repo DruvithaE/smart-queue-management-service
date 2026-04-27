@@ -3,7 +3,12 @@
 
 import { useEffect, useState } from "react";
 import {
-  getAdminDashboard, updateRideStatus, createRide, deleteRide
+  getAdminDashboard,
+  updateRideStatus,
+  createRide,
+  deleteRide,
+  searchQueueEntriesByUserId,
+  adminRemoveQueueEntry,
 } from "../api";
 
 const STATUSES = ["OPEN", "CLOSED", "MAINTENANCE", "FULL"];
@@ -220,6 +225,213 @@ function RideRow({ ride, onStatusChange, onDelete }) {
     </tr>
   );
 }
+function QueueModeration({ rides }) {
+  const [queryUserId, setQueryUserId] = useState("");
+  const [selectedRideId, setSelectedRideId] = useState("");
+  const [entries, setEntries] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [actionMessage, setActionMessage] = useState("");
+
+  const runSearch = async (override = {}) => {
+    const searchTerm =
+      override.searchTerm !== undefined ? override.searchTerm : queryUserId.trim();
+    const rideFilter =
+      override.rideId !== undefined ? override.rideId : selectedRideId;
+
+    setLoading(true);
+    setError("");
+    setActionMessage("");
+
+    try {
+      const data = await searchQueueEntriesByUserId(
+        searchTerm,
+        rideFilter ? Number(rideFilter) : null,
+        100
+      );
+      setEntries(data.entries || []);
+    } catch (e) {
+      setError(e.message || "Search failed");
+      setEntries([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemove = async (rideId, userId) => {
+    const ok = window.confirm(
+      `Remove user '${userId}' from ride ${rideId} queue?`
+    );
+    if (!ok) {
+      return;
+    }
+
+    setError("");
+    setActionMessage("");
+
+    try {
+      await adminRemoveQueueEntry(rideId, userId);
+      setActionMessage(`Removed ${userId} from ride ${rideId} queue.`);
+      await runSearch();
+    } catch (e) {
+      setError(e.message || "Failed to remove user from queue");
+    }
+  };
+
+  useEffect(() => {
+    runSearch();
+  }, []);
+
+  useEffect(() => {
+    runSearch({ rideId: selectedRideId });
+  }, [selectedRideId]);
+
+  return (
+    <div style={{
+      background: "#fff",
+      borderRadius: 14,
+      boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+      border: "1px solid #f0f0f0",
+      overflow: "hidden",
+      marginBottom: 24,
+    }}>
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid #f1f5f9" }}>
+        <div style={{ fontWeight: 700, fontSize: 15 }}>Queue Moderation</div>
+        <div style={{ color: "#64748b", fontSize: 13, marginTop: 4 }}>
+          Search by user ID, name, or email. Leave blank to list all active queue entries.
+        </div>
+      </div>
+
+      <div style={{ padding: "16px 20px", display: "grid", gridTemplateColumns: "1.5fr 1fr auto", gap: 10, alignItems: "center" }}>
+        <input
+          value={queryUserId}
+          onChange={(e) => setQueryUserId(e.target.value)}
+          placeholder="Search user ID, name, or email"
+          style={{
+            padding: "9px 12px",
+            borderRadius: 8,
+            border: "1px solid #e5e7eb",
+            fontSize: 14,
+            outline: "none",
+            width: "100%",
+            boxSizing: "border-box",
+          }}
+        />
+
+        <select
+          value={selectedRideId}
+          onChange={(e) => setSelectedRideId(e.target.value)}
+          style={{
+            padding: "9px 12px",
+            borderRadius: 8,
+            border: "1px solid #e5e7eb",
+            fontSize: 14,
+            background: "#fff",
+          }}
+        >
+          <option value="">All rides</option>
+          {rides.map((ride) => (
+            <option key={ride.id} value={ride.id}>
+              {ride.id} - {ride.name}
+            </option>
+          ))}
+        </select>
+
+        <button
+          onClick={runSearch}
+          disabled={loading}
+          style={{
+            padding: "9px 14px",
+            background: "#0f766e",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            fontWeight: 700,
+            cursor: "pointer",
+            opacity: loading ? 0.65 : 1,
+          }}
+        >
+          {loading ? "Loading..." : "Search"}
+        </button>
+      </div>
+
+      {error && <div style={{ color: "#b91c1c", fontSize: 13, padding: "0 20px 10px" }}>{error}</div>}
+      {actionMessage && <div style={{ color: "#166534", fontSize: 13, padding: "0 20px 10px" }}>{actionMessage}</div>}
+
+      <div style={{ overflowX: "auto", padding: "0 0 8px" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr style={{ background: "#f8fafc", color: "#555" }}>
+              {["Ride", "User", "Priority", "Position", "Joined", "Action"].map((h) => (
+                <th
+                  key={h}
+                  style={{
+                    padding: "10px 16px",
+                    textAlign: "left",
+                    fontWeight: 600,
+                    fontSize: 12,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {entries.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ padding: 20, textAlign: "center", color: "#94a3b8" }}>
+                  No active queue entries found.
+                </td>
+              </tr>
+            ) : (
+              entries.map((entry) => (
+                <tr key={entry.entryId} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <td style={{ padding: "10px 16px" }}>
+                    {entry.rideId} - {entry.rideName}
+                  </td>
+                  <td style={{ padding: "10px 16px" }}>
+                    <div style={{ fontFamily: "monospace", fontSize: 12 }}>{entry.userId}</div>
+                    {(entry.userName || entry.userEmail) && (
+                      <div style={{ marginTop: 2, fontSize: 12, color: "#64748b" }}>
+                        {entry.userName || "Unknown"}
+                        {entry.userEmail ? ` (${entry.userEmail})` : ""}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ padding: "10px 16px" }}>{entry.isPriority ? "FAST PASS" : "REGULAR"}</td>
+                  <td style={{ padding: "10px 16px", fontWeight: 700 }}>{entry.position}</td>
+                  <td style={{ padding: "10px 16px" }}>
+                    {new Date(entry.joinedAt).toLocaleString()}
+                  </td>
+                  <td style={{ padding: "10px 16px" }}>
+                    <button
+                      onClick={() => handleRemove(entry.rideId, entry.userId)}
+                      style={{
+                        background: "#fee2e2",
+                        color: "#dc2626",
+                        border: "none",
+                        borderRadius: 6,
+                        padding: "5px 10px",
+                        cursor: "pointer",
+                        fontWeight: 700,
+                        fontSize: 12,
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
 export default function AdminPanel() {
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -279,6 +491,8 @@ export default function AdminPanel() {
       <div style={{ marginBottom: 24 }}>
         <AddRideForm onAdd={load} />
       </div>
+
+      <QueueModeration rides={dashboard.rides || []} />
 
       {/* Rides table */}
       <div style={{ background: "#fff", borderRadius: 14, boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
