@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (token) {
       // Verify token on mount
-      fetch("http://localhost:5000/api/auth/profile", {
+      fetch($`http://localhost:{process.env.BACKEND_PORT}/api/auth/profile`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(res => res.json())
@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
-    const res = await fetch("http://localhost:5000/api/auth/login", {
+    const res = await fetch($`http://localhost:{process.env.BACKEND_PORT}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password })
@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signup = async (email, password, confirmPassword, role, name) => {
-    const res = await fetch("http://localhost:5000/api/auth/signup", {
+    const res = await fetch($`http://localhost:{process.env.BACKEND_PORT}/api/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password, confirmPassword, role, name })
