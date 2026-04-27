@@ -82,7 +82,6 @@ const notifyNearbyUsers = async (rideId) => {
 
     // notify only when entering threshold zone
     if (position <= threshold && (lastPos === undefined || lastPos > threshold)) {
-      console.log("Notifying:", userId);
       notificationService.sendNotification(userId, message);
     }
 
