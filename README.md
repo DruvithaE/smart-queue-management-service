@@ -312,7 +312,7 @@ The goal of this test suite is to validate the system’s **reliability guarante
 
 ## Test Cases Summary
 
-### ✅ RF-001: Idempotency (Duplicate Requests)
+###  RF-001: Idempotency (Duplicate Requests)
 **Goal:** Ensure duplicate `joinQueue` requests do not create multiple entries.
 
 - First request → **201 Created**
@@ -324,7 +324,7 @@ The goal of this test suite is to validate the system’s **reliability guarante
 
 ---
 
-### ✅ RF-002: Data Persistence (Atomicity)
+###  RF-002: Data Persistence (Atomicity)
 **Goal:** Ensure data persists even after simulated failure.
 
 - Entry inserted successfully  
@@ -335,7 +335,7 @@ The goal of this test suite is to validate the system’s **reliability guarante
 
 ---
 
-### ✅ RF-003: Concurrent Joins
+###  RF-003: Concurrent Joins
 **Goal:** Validate queue consistency under concurrent requests.
 
 - 10 parallel join requests executed  
@@ -349,7 +349,7 @@ The goal of this test suite is to validate the system’s **reliability guarante
 
 ---
 
-### ✅ RF-004: Safe Leave Operation
+###  RF-004: Safe Leave Operation
 **Goal:** Ensure leaving the queue does not delete data.
 
 - Entry status changed from `ACTIVE` → `LEFT`  
@@ -360,7 +360,7 @@ The goal of this test suite is to validate the system’s **reliability guarante
 
 ---
 
-### ✅ RF-005: Retry Safety
+###  RF-005: Retry Safety
 **Goal:** Prevent duplicate entries during retries.
 
 - 5 rapid retry attempts  
@@ -371,7 +371,7 @@ The goal of this test suite is to validate the system’s **reliability guarante
 
 ---
 
-### ✅ RF-006: Mixed Operations (Join + Leave)
+###  RF-006: Mixed Operations (Join + Leave)
 **Goal:** Maintain consistency with mixed operations.
 
 - 5 users joined  
@@ -387,7 +387,7 @@ The goal of this test suite is to validate the system’s **reliability guarante
 
 ---
 
-### ✅ RF-007: Sequential Operations
+###  RF-007: Sequential Operations
 **Goal:** Validate consistency over multiple operations.
 
 - 20 sequential joins executed  
@@ -397,7 +397,7 @@ The goal of this test suite is to validate the system’s **reliability guarante
 
 ---
 
-### ✅ RF-008: Rejoin After Leaving
+###  RF-008: Rejoin After Leaving
 **Goal:** Ensure users can rejoin without data corruption.
 
 - User joins → leaves → rejoins  
@@ -462,3 +462,196 @@ The system successfully meets the reliability requirements:
 
 Overall, the Smart Queue Management System demonstrates **strong reliability, consistency, and fault tolerance**, making it suitable for real-world deployment scenarios.
 
+# Usability Testing  
+
+---
+
+## Objective
+The purpose of this test suite is to validate the **Usability Non-Functional Requirements (NFRs)** of the system:
+
+- Users should be able to **join a queue quickly and easily**
+- System should provide **fast response times (≤ 300 ms)**
+- System should provide **clear and meaningful feedback**
+- System should maintain a **low error rate during normal usage**
+
+---
+
+## Testing Approach
+
+Since usability is typically human-centric, we approximate it through **automated backend testing** using:
+
+- **Response time measurement** (proxy for UI responsiveness)
+- **API simplicity** (number of steps required)
+- **Error clarity** (quality of feedback)
+- **Success rate under normal usage**
+
+### Tools Used
+- **Jest** – Testing framework  
+- **Supertest** – API testing  
+- **PostgreSQL** – Database validation  
+
+---
+
+## Test Setup
+
+### Initialization (`beforeAll`)
+- Mocked notification service to prevent runtime socket errors
+- Inserted test rides into database
+
+### Before Each Test (`beforeEach`)
+- Cleared `queue_entries` table to ensure isolation
+
+---
+
+## Test Cases and Results
+
+---
+
+###  UF-001: Response Time for joinQueue
+
+**Goal:** Ensure queue join operation is fast (≤ 300 ms)
+
+- Measured API response time
+- Observed response time: **77 ms**
+
+✔️ **Result:** Passed  
+✔️ **Conclusion:** System meets latency requirement for user interaction  
+
+---
+
+###  UF-002: Minimal Interaction & Meaningful Response
+
+**Goal:** Ensure user can join queue in a single step and receive useful feedback
+
+- Single API call used to join queue
+- Response includes:
+  - `position`
+  - `peopleAhead`
+  - `userId`
+  - `rideId`
+
+✔️ **Result:** Passed  
+
+✔️ **Conclusion:**  
+- Minimal interaction required (1 step)  
+- System provides immediate and useful feedback  
+
+---
+
+###  UF-003: Clear Error Messaging
+
+**Goal:** Ensure system provides understandable error messages
+
+- Duplicate join attempt tested
+- Error message contains keyword: **"already"**
+
+✔️ **Result:** Passed  
+
+✔️ **Conclusion:**  
+- Errors are clear and informative  
+- Improves user understanding and reduces confusion  
+
+---
+
+###  UF-004: Response Time for leaveQueue
+
+**Goal:** Ensure leaving queue is fast (≤ 300 ms)
+
+- Measured response time: **45 ms**
+
+✔️ **Result:** Passed  
+✔️ **Conclusion:** System maintains fast responsiveness for exit operations  
+
+---
+
+###  UF-005: Success Rate Under Normal Usage
+
+**Goal:** Ensure system works reliably for multiple users
+
+- Simulated 5 users joining queue
+- Successful joins: **5/5**
+
+✔️ **Result:** Passed  
+
+✔️ **Conclusion:**  
+- High success rate  
+- Smooth user experience under normal conditions  
+
+---
+
+## Performance Summary
+
+| Metric | Value |
+|------|------|
+| Total Tests | 5 |
+| Passed | 5 |
+| Failed | 0 |
+| Avg Response Time (Join) | ~77 ms |
+| Avg Response Time (Leave) | ~45 ms |
+| Success Rate | 100% |
+
+---
+
+## Key Usability Insights
+
+### 1. Fast Interaction
+- All operations complete within **≤ 300 ms**
+- Ensures smooth and responsive user experience
+
+---
+
+### 2. Minimal User Effort
+- Queue join requires **only one API call**
+- Reduces cognitive load and interaction complexity
+
+---
+
+### 3. Informative Feedback
+- Users receive:
+  - Queue position  
+  - Number of people ahead  
+
+  Enhances transparency and user satisfaction  
+
+---
+
+### 4. Clear Error Handling
+- Duplicate actions return understandable messages
+- Prevents user confusion
+
+---
+
+### 5. High Reliability in Normal Use
+- All valid operations succeed consistently
+- No unexpected failures observed
+
+---
+
+## Assumptions
+
+- Backend response time is used as a proxy for UI responsiveness  
+- Small-scale testing (5 users) represents typical usage behavior  
+- Network latency is negligible in test environment  
+
+---
+
+## Limitations
+
+- Does not include real user interaction testing  
+- UI/UX design aspects (layout, navigation) not evaluated  
+- Large-scale usability (thousands of users) not directly tested  
+
+---
+
+## Conclusion
+
+The Smart Queue Management System successfully meets its **Usability NFRs**:
+
+- Fast response times ensure smooth interaction  
+- Simple API design enables easy usage  
+- Clear feedback improves user experience  
+- System performs reliably under normal conditions  
+
+Overall, the system demonstrates **efficient, intuitive, and responsive behavior**, making it user-friendly and practical for real-world deployment.
+
+---
