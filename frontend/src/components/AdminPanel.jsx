@@ -473,7 +473,7 @@ export default function AdminPanel() {
   return (
     <div style={{ fontFamily: "'Segoe UI', sans-serif", maxWidth: 1000, margin: "0 auto", padding: "32px 24px" }}>
       <div style={{ marginBottom: 28 }}>
-        <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "#faf7f7ff" }}>Admin Dashboard</h2>
+        <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "#faf7f7ff" }}>ADMIN DASHBOARD</h2>
         <p style={{ margin: "6px 0 0", color: "#f3efefff", fontSize: 14 }}>Ride management & analytics</p>
       </div>
 

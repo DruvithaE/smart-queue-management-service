@@ -9,9 +9,7 @@ const lastPositions = new Map();
 
 function parseRideId(rawRideId) {
   const rideId = Number(rawRideId);
-  if (!Number.isInteger(rideId) || rideId <= 0) {
-    return null;
-  }
+  if (!Number.isInteger(rideId) || rideId <= 0) return null;
   return rideId;
 }
 
@@ -21,7 +19,10 @@ const getWaitTime = async (rideId, userId) => {
     const axios = (await import("axios")).default;
 
     const response = await axios.get(
-      `http://localhost:${process.env.PORT}/api/wait-time/predict?rideId=${rideId}&userId=${userId}`
+      `http://localhost:${process.env.PORT}/api/wait-time/predict`,
+      {
+        params: { rideId, userId }
+      }
     );
 
     return response.data;
@@ -31,9 +32,17 @@ const getWaitTime = async (rideId, userId) => {
   }
 };
 
-const notifyNearbyUsers = async (rideId) => {
-  console.log("Running notifyNearbyUsers for ride:", rideId);
+// get ride capacity (used as threshold)
+const getRideCapacity = async (rideId) => {
+  const result = await pool.query(
+    "SELECT capacity FROM rides WHERE id = $1",
+    [rideId]
+  );
 
+  return result.rows[0]?.capacity || 5;
+};
+
+const notifyNearbyUsers = async (rideId) => {
   const result = await pool.query(`
     SELECT user_id, priority,
            ROW_NUMBER() OVER (
@@ -43,41 +52,36 @@ const notifyNearbyUsers = async (rideId) => {
     WHERE ride_id = $1 AND status = 'ACTIVE'
   `, [rideId]);
 
+  const capacity = await getRideCapacity(rideId);
+  const threshold = capacity;
+
   for (const row of result.rows) {
     const userId = row.user_id;
     const position = row.position;
     const isPriority = row.priority;
 
     const lastPos = lastPositions.get(userId);
-    const threshold = isPriority ? 3 : 5;
-
-    console.log(
-      "User:", userId,
-      "Priority:", isPriority,
-      "Prev:", lastPos,
-      "Now:", position
-    );
 
     const waitData = await getWaitTime(rideId, userId);
-    const waitTime = waitData?.estimatedWaitTime;
+    const waitTime = Number(waitData?.estimatedWaitTime);
 
     let message;
 
+    // 🚨 turn reached
     if (waitTime === 0) {
-      message = `It's your turn, please proceed to the ride.`;
+      message = "It's your turn, please proceed to the ride.";
     } else {
       message = isPriority
         ? `You are ${position} in the Fast Pass queue.`
         : `You are ${position} in the queue.`;
 
-      if (waitTime !== undefined && waitTime !== null) {
+      if (!isNaN(waitTime)) {
         message += ` Estimated wait: ${Math.ceil(waitTime)} mins.`;
       }
     }
 
-    // notify only when entering threshold
+    // notify only when entering threshold zone
     if (position <= threshold && (lastPos === undefined || lastPos > threshold)) {
-      console.log("Notifying:", userId);
       notificationService.sendNotification(userId, message);
     }
 
@@ -105,20 +109,29 @@ async function joinQueue(req, res) {
       groupSize,
     });
 
+    // 🔥 JOIN NOTIFICATION
+    const waitData = await getWaitTime(rideId, userId);
+    const waitTime = Number(waitData?.estimatedWaitTime);
+
+    let joinMessage;
+
+    if (waitTime === 0) {
+      joinMessage = "It's your turn, please proceed to the ride.";
+    } else {
+      joinMessage = "You joined the queue.";
+
+      if (!isNaN(waitTime)) {
+        joinMessage += ` Estimated wait: ${Math.ceil(waitTime)} mins.`;
+      }
+    }
+
+    notificationService.sendNotification(userId, joinMessage);
+
     await notifyNearbyUsers(rideId);
 
     return res.status(201).json(data);
 
   } catch (error) {
-    if (error.message.includes("already has an active queue entry")) {
-      return res.status(409).json({ error: error.message });
-    }
-    if (error.message.includes("not found")) {
-      return res.status(404).json({ error: error.message });
-    }
-    if (error.message.includes("not open")) {
-      return res.status(400).json({ error: error.message });
-    }
     return res.status(500).json({ error: error.message });
   }
 }
@@ -137,6 +150,7 @@ async function leaveQueue(req, res) {
     lastPositions.delete(userId);
 
     await notifyNearbyUsers(rideId);
+
     notificationService.sendNotification(
       userId,
       "You have left the queue."
@@ -145,9 +159,6 @@ async function leaveQueue(req, res) {
     return res.json(data);
 
   } catch (error) {
-    if (error.message.includes("No active queue entry")) {
-      return res.status(404).json({ error: error.message });
-    }
     return res.status(500).json({ error: error.message });
   }
 }
@@ -176,14 +187,8 @@ async function queueStatus(req, res) {
 async function adminSearchQueue(req, res) {
   try {
     const searchTerm = String(req.query.userId || req.query.search || "").trim();
-    const rideIdRaw = req.query.rideId;
-    const rideId = rideIdRaw ? parseRideId(rideIdRaw) : null;
-    const limitRaw = req.query.limit;
-    const limit = limitRaw ? Number(limitRaw) : 50;
-
-    if (rideIdRaw && !rideId) {
-      return res.status(400).json({ error: "rideId must be a positive integer" });
-    }
+    const rideId = req.query.rideId ? parseRideId(req.query.rideId) : null;
+    const limit = Number(req.query.limit || 50);
 
     const entries = await queueManager.searchActiveQueueEntries({
       searchTerm,
@@ -195,6 +200,7 @@ async function adminSearchQueue(req, res) {
       count: entries.length,
       entries,
     });
+
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
@@ -216,6 +222,7 @@ async function adminRemoveQueueUser(req, res) {
     });
 
     lastPositions.delete(userId);
+
     await notifyNearbyUsers(rideId);
 
     notificationService.sendNotification(
@@ -224,10 +231,8 @@ async function adminRemoveQueueUser(req, res) {
     );
 
     return res.json(data);
+
   } catch (error) {
-    if (error.message.includes("No active queue entry")) {
-      return res.status(404).json({ error: error.message });
-    }
     return res.status(500).json({ error: error.message });
   }
 }

@@ -13,7 +13,7 @@ const AdminDashboard = () => {
 
   return (
     <div className="dashboard">
-      <h1>Admin Dashboard</h1>
+      <h1>ADMIN DASHBOARD</h1>
       <p>Welcome, {user?.name}</p>
       <p>Email: {user?.email}</p>
       {/* Add admin-specific features here */}
