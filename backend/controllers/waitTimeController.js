@@ -13,7 +13,7 @@ const router = express.Router();
  */
 router.get("/predict", async (req, res) => {
     try {
-        const { rideId, previousWait } = req.query;
+        const { rideId, userId,  previousWait } = req.query;
 
         // Validate required input
         if (!rideId) {
@@ -35,6 +35,7 @@ router.get("/predict", async (req, res) => {
         // Call service layer
         const result = await WaitTimeLogic.calculateWaitTime(
             rideId,
+            userId || null,
             previousWait ? parseInt(previousWait, 10) : null
         );
 

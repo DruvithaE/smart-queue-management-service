@@ -2,20 +2,22 @@ const WaitTimeStrategy = require("./WaitTimeStrategy");
 
 class LoadBasedStrategy extends WaitTimeStrategy {
   calculate(data) {
-    const { queueLength, capacity, duration } = data;
+    const { position, capacity, duration } = data;
 
-    if (capacity === 0) {
+    if (capacity <= 0) {
       throw new Error("Capacity cannot be zero");
     }
 
-    // Immediate boarding
-    if (queueLength <= capacity) {
-      return 0;
+    if (!position || position <= 0) {
+      throw new Error("Invalid position");
     }
 
-    const baseWait = (queueLength / capacity) * duration;
+    // Base wait using position
+    const cycles = Math.floor((position - 1) / capacity);
+    const baseWait = cycles * duration;
 
-    const loadFactor = queueLength / capacity;
+    // Load factor based on how deep user is in queue
+    const loadFactor = position / capacity;
 
     let adjustedWait = baseWait;
 

@@ -2,15 +2,31 @@ const WaitTimeStrategy = require("./WaitTimeStrategy");
 
 class AverageStrategy extends WaitTimeStrategy {
   calculate(data) {
-    const { queueLength, capacity, duration, previousWait } = data;
+    const {
+      position,
+      capacity,
+      duration,
+      previousWait
+    } = data;
 
-    if (queueLength < capacity) {
-      return 0;
+    if (capacity <= 0) {
+      throw new Error("Capacity cannot be zero");
     }
 
-    const currentWait = (queueLength / capacity) * duration;
+    if (!position || position <= 0) {
+      throw new Error("Invalid position");
+    }
 
-    return (previousWait + currentWait) / 2;
+    // Calculate wait time only using position
+    const cycles = Math.floor((position - 1) / capacity);
+    const currentWait = cycles * duration;
+
+    // Smooth using previous wait if available
+    if (previousWait !== null) {
+      return Math.round((previousWait + currentWait) / 2);
+    }
+
+    return Math.round(currentWait);
   }
 }
 

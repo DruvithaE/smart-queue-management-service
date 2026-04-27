@@ -16,12 +16,12 @@ function parseRideId(rawRideId) {
 }
 
 // fetch wait-time from wait-time service
-const getWaitTime = async (rideId) => {
+const getWaitTime = async (rideId, userId) => {
   try {
     const axios = (await import("axios")).default;
 
     const response = await axios.get(
-      `http://${process.env.REACT_APP_API_BASE_URL}/api/wait-time/predict?rideId=${rideId}`
+      `http://${process.env.REACT_APP_API_BASE_URL}/api/wait-time/predict?rideId=${rideId}&userId=${userId}`
     );
 
     return response.data;
@@ -44,7 +44,6 @@ const notifyNearbyUsers = async (rideId) => {
     WHERE ride_id = $1 AND status = 'ACTIVE'
   `, [rideId]);
 
-  const waitData = await getWaitTime(rideId);
 
   result.rows.forEach(row => {
     const userId = row.user_id;
@@ -61,7 +60,7 @@ const notifyNearbyUsers = async (rideId) => {
       "Prev:", lastPos,
       "Now:", position
     );
-
+    const waitData = getWaitTime(rideId, userId);
     // notify only when entering threshold
     if (position <= threshold && (lastPos === undefined || lastPos > threshold)) {
       let message;

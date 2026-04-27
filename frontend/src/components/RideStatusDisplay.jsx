@@ -1,6 +1,6 @@
 // src/components/RideStatusDisplay.jsx
 // User-facing: shows all rides with live status, wait info, and queue controls
-import { useEffect, useState, useContext } from "react";
+import { useEffect, useState, useContext, use } from "react";
 import { AuthContext } from "../context/AuthContext";
 import {
   getAllRides,
@@ -55,6 +55,8 @@ function RideCard({
   onJoinQueue,
   onLeaveQueue,
 }) {
+  const { user } = useContext(AuthContext);
+  const userId = user?.id;
   const [showWait, setShowWait] = useState(false);
   const [waitData, setWaitData] = useState(null);
   const [loadingWait, setLoadingWait] = useState(false);
@@ -69,7 +71,7 @@ function RideCard({
 
     try {
       setLoadingWait(true);
-      const data = await getPredictedWaitTime(ride.id);
+      const data = await getPredictedWaitTime(ride.id, userId);
       setWaitData(data);
       setWaitError("");
       setShowWait(true);

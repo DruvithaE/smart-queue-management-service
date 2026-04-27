@@ -6,7 +6,7 @@ const PeakHourStrategy = require("./strategies/PeakHourStrategy");
 const LoadBasedStrategy = require("./strategies/LoadBasedStrategy");
 const StrategyContext = require("./strategies/StrategyContext");
 
-const BACKEND_PORT = process.env.PORT || 5000;
+const BACKEND_PORT = process.env.PORT;
 
 const RIDE_SERVICE_URL =
   process.env.RIDE_SERVICE_URL ||
@@ -17,27 +17,43 @@ const QUEUE_SERVICE_URL =
   `http://localhost:${BACKEND_PORT}/queue`;
 
 class WaitTimeLogic {
-  static async calculateWaitTime(rideId, previousWait = null) {
+  static async calculateWaitTime(
+    rideId,
+    userId = null,
+    previousWait = null
+  ) {
     try {
       // Fetch queue status
+    //   console.log(`Fetching queue status for rideId: ${rideId}, userId: ${userId}`);
       const queueResponse = await axios.get(
         `${QUEUE_SERVICE_URL}/queueStatus`,
         {
-          params: { rideId }
+          params: {
+            rideId,
+            userId
+          }
         }
       );
 
-      const queueLength =
-        Number(queueResponse.data.totalActive) || 0;
+      const queueData = queueResponse.data;
+
+      const totalActive =
+        Number(queueData.totalActive) || 0;
+
+      // If user in queue use real position
+      // Else assume next joining position
+      const position = queueData.userInQueue
+        ? Number(queueData.position)
+        : totalActive + 1;
 
       // Fetch ride details
       const rideResponse = await axios.get(
         `${RIDE_SERVICE_URL}/getRideDetails/${rideId}`
       );
 
-      const { capacity, duration, status } = rideResponse.data;
+      const { capacity, duration, status } =
+        rideResponse.data;
 
-      // Only OPEN rides allowed
       if (status !== "OPEN") {
         return {
           error: `Ride is currently ${status}`
@@ -45,25 +61,14 @@ class WaitTimeLogic {
       }
 
       const data = {
-        queueLength,
+        position,
         capacity: Number(capacity),
         duration: parseFloat(duration),
         previousWait
       };
 
-      // Validate capacity
       if (data.capacity <= 0) {
         throw new Error("Invalid ride capacity");
-      }
-
-      // No queue = no wait
-      if (data.queueLength === 0) {
-        return {
-          rideId,
-          estimatedWaitTime: 0,
-          strategyUsed: "No Queue",
-          queueLength: 0
-        };
       }
 
       const currentHour = new Date().getHours();
@@ -71,23 +76,32 @@ class WaitTimeLogic {
       let strategy;
       let strategyName;
 
-      const loadFactor = data.queueLength / data.capacity;
+      const loadFactor =
+        data.position / data.capacity;
 
       if (loadFactor > 4) {
         strategy = new LoadBasedStrategy();
-        strategyName = "Load Adaptive Prediction";
-      } else if (currentHour >= 12 && currentHour <= 16) {
+        strategyName =
+          "Load Adaptive Prediction";
+      } else if (
+        currentHour >= 12 &&
+        currentHour <= 16
+      ) {
         strategy = new PeakHourStrategy();
-        strategyName = "Peak Hour Prediction";
+        strategyName =
+          "Peak Hour Prediction";
       } else if (previousWait !== null) {
         strategy = new AverageStrategy();
-        strategyName = "Stability Prediction";
+        strategyName =
+          "Stability Prediction";
       } else {
         strategy = new BasicStrategy();
-        strategyName = "Standard Prediction";
+        strategyName =
+          "Standard Prediction";
       }
 
-      const context = new StrategyContext(strategy);
+      const context =
+        new StrategyContext(strategy);
 
       const estimatedWaitTime = Math.max(
         0,
@@ -98,11 +112,17 @@ class WaitTimeLogic {
         rideId,
         estimatedWaitTime,
         strategyUsed: strategyName,
-        queueLength: data.queueLength
+        totalActive,
+        position,
+        userInQueue:
+          queueData.userInQueue || false
       };
 
     } catch (error) {
-      console.error("WaitTimeLogic Error:", error.message);
+      console.error(
+        "WaitTimeLogic Error:",
+        error.message
+      );
 
       return {
         error: error.message

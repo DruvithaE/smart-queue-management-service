@@ -53,8 +53,19 @@ export async function getAdminDashboard() {
   return fetchJson(`${BASE_URL}/admin/dashboard`);
 }
 
-export async function getPredictedWaitTime(rideId) {
-  return fetchJson(`${BASE_URL}/api/wait-time/predict?rideId=${rideId}`);
+export async function getPredictedWaitTime(
+  rideId,
+  userId
+) {
+  let url =
+    `${BASE_URL}/api/wait-time/predict?rideId=${rideId}`;
+
+  if (userId) {
+    url += `&userId=${userId}`;
+  }
+  console.log("Fetching predicted wait time from URL:", url);
+
+  return fetchJson(url);
 }
 
 export async function joinQueue(rideId, userId, fastPass = false) {
