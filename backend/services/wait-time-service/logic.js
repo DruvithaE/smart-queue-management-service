@@ -8,18 +8,22 @@ const StrategyContext = require("./strategies/StrategyContext");
 
 const BACKEND_PORT = process.env.PORT || 5000;
 const RIDE_SERVICE_URL = process.env.RIDE_SERVICE_URL || `http://localhost:${BACKEND_PORT}/rides`;
+const QUEUE_SERVICE_URL = process.env.QUEUE_SERVICE_URL || `http://localhost:${BACKEND_PORT}/queue`;
 
 class WaitTimeLogic {
     static async calculateWaitTime(rideId, previousWait = null) {
         try {
             // Dummy queue length
-            // const queueResponse = await axios.get(
-            //     `${QUEUE_SERVICE_URL}/getQueueLength/${rideId}`
-            // );  
-            // queueResponse = null; // Simulate API failure for testing fallback
-            // const queueLength = queueResponse ? queueResponse.data.queueLength : 60; // Fallback to dummy value if API fails
-            const queueLength = 25;
-
+            const queueResponse = await axios.get(
+                `${QUEUE_SERVICE_URL}/queueStatus`,
+                {
+                  params: { rideId }
+                }
+              );
+        
+              const queueLength = queueResponse.data.totalActive || 0;
+        
+        
             // Fetch Ride Data
             const rideResponse = await axios.get(
                 `${RIDE_SERVICE_URL}/getRideDetails/${rideId}`
@@ -49,8 +53,7 @@ class WaitTimeLogic {
             let strategy;
             let strategyName;
 
-            const loadFactor = data.queueLength / data.capacity;
-
+            const loadFactor = data.capacity > 0 ? data.queueLength / data.capacity : 0;
             if (loadFactor > 4) {
                 strategy = new LoadBasedStrategy();
                 strategyName = "Load Adaptive Prediction";
@@ -73,7 +76,8 @@ class WaitTimeLogic {
 
             return {
                 estimatedWaitTime,
-                strategyUsed: strategyName
+                strategyUsed: strategyName,
+                queueLength: data.queueLength,
             };
 
         } catch (error) {

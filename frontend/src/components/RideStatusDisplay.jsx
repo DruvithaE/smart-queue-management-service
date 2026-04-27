@@ -1,7 +1,7 @@
 // src/components/RideStatusDisplay.jsx
 // User-facing: shows all rides with live status, wait info, and queue controls
-
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
 import {
   getAllRides,
   getPredictedWaitTime,
@@ -50,7 +50,6 @@ function StatusBadge({ status }) {
 
 function RideCard({
   ride,
-  visitorId,
   queueInfo,
   queueBusy,
   onJoinQueue,
@@ -82,7 +81,7 @@ function RideCard({
     }
   };
 
-  const canQueue = ride.status === "OPEN" && visitorId.trim();
+  const canQueue = ride.status === "OPEN";
 
   return (
     <div
@@ -234,11 +233,12 @@ function RideCard({
 }
 
 export default function RideStatusDisplay() {
+  const { user } = useContext(AuthContext);
+  const userId = user?.id;
   const [rides, setRides] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("ALL");
-  const [visitorId, setVisitorId] = useState("");
   const [queueMap, setQueueMap] = useState({});
   const [queueBusyMap, setQueueBusyMap] = useState({});
   const [queueError, setQueueError] = useState("");
@@ -256,9 +256,9 @@ export default function RideStatusDisplay() {
     }
   };
 
-  const refreshQueueStatus = async (rideId, user = visitorId.trim()) => {
+  const refreshQueueStatus = async (rideId) => {
     try {
-      const status = await getQueueStatus(rideId, user || undefined);
+      const status = await getQueueStatus(rideId, userId || undefined);
       setQueueMap((prev) => ({ ...prev, [rideId]: status }));
       setQueueError("");
     } catch (e) {
@@ -266,22 +266,21 @@ export default function RideStatusDisplay() {
     }
   };
 
-  const refreshAllQueues = async (user = visitorId.trim(), sourceRides = rides) => {
+  const refreshAllQueues = async (sourceRides = rides) => {
     if (!sourceRides.length) return;
-    await Promise.all(sourceRides.map((ride) => refreshQueueStatus(ride.id, user)));
+    await Promise.all(sourceRides.map((ride) => refreshQueueStatus(ride.id, userId)));
   };
 
   const handleJoinQueue = async (rideId, fastPass) => {
-    const user = visitorId.trim();
-    if (!user) {
+    if (!userId) {
       setQueueError("Enter your visitor ID before joining a queue.");
       return;
     }
 
     try {
       setQueueBusyMap((prev) => ({ ...prev, [rideId]: true }));
-      await joinQueue(rideId, user, fastPass);
-      await refreshQueueStatus(rideId, user);
+      await joinQueue(rideId, userId, fastPass);
+      await refreshQueueStatus(rideId, userId);
       setQueueError("");
     } catch (e) {
       setQueueError(e.message);
@@ -291,16 +290,15 @@ export default function RideStatusDisplay() {
   };
 
   const handleLeaveQueue = async (rideId) => {
-    const user = visitorId.trim();
-    if (!user) {
+    if (!userId) {
       setQueueError("Enter your visitor ID before leaving a queue.");
       return;
     }
 
     try {
       setQueueBusyMap((prev) => ({ ...prev, [rideId]: true }));
-      await leaveQueue(rideId, user);
-      await refreshQueueStatus(rideId, user);
+      await leaveQueue(rideId, userId);
+      await refreshQueueStatus(rideId, userId);
       setQueueError("");
     } catch (e) {
       setQueueError(e.message);
@@ -314,7 +312,7 @@ export default function RideStatusDisplay() {
       const data = await getAllRides();
       setRides(data);
       setLoading(false);
-      await refreshAllQueues(visitorId.trim(), data);
+      await refreshAllQueues( data);
     };
 
     bootstrap().catch((e) => {
@@ -332,7 +330,7 @@ export default function RideStatusDisplay() {
     refreshAllQueues();
     const queueInterval = setInterval(() => refreshAllQueues(), 10000);
     return () => clearInterval(queueInterval);
-  }, [visitorId, rides]);
+  }, [rides]);
 
   const filtered = filter === "ALL" ? rides : rides.filter((r) => r.status === filter);
   const counts = Object.fromEntries(
@@ -349,24 +347,6 @@ export default function RideStatusDisplay() {
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ margin: 0, fontSize: 26, fontWeight: 800, color: "#111" }}>Ride Status & Queue</h2>
         <p style={{ margin: "6px 0 0", color: "#666", fontSize: 14 }}>Live status refresh every 30s, queue refresh every 10s</p>
-      </div>
-
-      <div style={{ marginBottom: 20, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: "12px 14px" }}>
-        <label style={{ fontSize: 13, color: "#334155", fontWeight: 600 }}>Visitor ID</label>
-        <input
-          value={visitorId}
-          onChange={(e) => setVisitorId(e.target.value)}
-          placeholder="Enter your visitor ID (example: user-101)"
-          style={{
-            marginTop: 6,
-            width: "100%",
-            maxWidth: 360,
-            padding: "8px 10px",
-            borderRadius: 8,
-            border: "1px solid #cbd5e1",
-            fontSize: 14,
-          }}
-        />
       </div>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
@@ -437,7 +417,6 @@ export default function RideStatusDisplay() {
               <RideCard
                 key={ride.id}
                 ride={ride}
-                visitorId={visitorId}
                 queueInfo={queueMap[ride.id]}
                 queueBusy={Boolean(queueBusyMap[ride.id])}
                 onJoinQueue={handleJoinQueue}
